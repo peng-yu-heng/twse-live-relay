@@ -97,3 +97,4 @@ for(const s of STOCKS){
 await writeFile('analysis/technicals.json',JSON.stringify(out,null,2)+'\n');
 console.log(JSON.stringify(out,null,2));
 if(out.stocks.length<8) process.exitCode=1;
+// run-trigger: 2026-10-01 intraday report
