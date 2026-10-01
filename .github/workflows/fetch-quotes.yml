@@ -1,0 +1,38 @@
+name: Fetch Taiwan live quotes
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Taiwan 09:21, 09:26, 09:31, 09:36 every calendar day.
+    - cron: '21,26,31,36 1 * * *'
+    # Taiwan 12:51, 12:56.
+    - cron: '51,56 4 * * *'
+    # Taiwan 13:01, 13:06.
+    - cron: '1,6 5 * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Fetch TWSE/OTC live quotes
+        run: node scripts/fetch-quotes.mjs
+      - name: Commit latest quote snapshot
+        if: always()
+        run: |
+          git config user.name "twse-live-relay-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add quotes/latest.json quotes/status.json || true
+          if git diff --cached --quiet; then
+            echo "No quote changes"
+            exit 0
+          fi
+          git commit -m "quotes: update live snapshot"
+          git push
