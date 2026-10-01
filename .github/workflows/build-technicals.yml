@@ -2,6 +2,9 @@ name: Build technical indicators
 
 on:
   workflow_dispatch:
+  schedule:
+    # Taiwan 08:45 daily; report logic still checks whether it is a trading day.
+    - cron: '45 0 * * *'
   push:
     branches: [main]
     paths:
