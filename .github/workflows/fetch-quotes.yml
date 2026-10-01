@@ -2,6 +2,11 @@ name: Fetch Taiwan live quotes
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/fetch-quotes.mjs'
+      - '.github/workflows/fetch-quotes.yml'
   schedule:
     # Taiwan 09:21, 09:26, 09:31, 09:36 every calendar day.
     - cron: '21,26,31,36 1 * * *'
