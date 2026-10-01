@@ -1,5 +1,5 @@
 {
-  "attempted_at": "2026-10-01T11:37:06+08:00",
+  "attempted_at": "2026-10-01T11:40:46+08:00",
   "source": "TWSE MIS via taux-io/twse-mcp Cloudflare relay",
   "endpoint": "https://twse-mcp.taux.io/mcp",
   "expected_codes": [
@@ -23,10 +23,18 @@
     "6147"
   ],
   "fresh_trade_codes_le_5m": [
+    "3037",
     "1802",
     "2408",
     "8358"
   ],
+  "fresh_bid_ask_only_codes_le_5m": [
+    "8046",
+    "3189",
+    "1303",
+    "6147"
+  ],
+  "unusable_codes": [],
   "missing_codes": [],
   "stale_date_codes": [],
   "errors": [],
