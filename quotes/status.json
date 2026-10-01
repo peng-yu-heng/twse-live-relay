@@ -1,5 +1,32 @@
 {
-  "attempted_at": null,
-  "success": false,
-  "errors": ["Not run yet"]
+  "attempted_at": "2026-10-01T11:35:36+08:00",
+  "source": "TWSE MIS via taux-io/twse-mcp Cloudflare relay",
+  "endpoint": "https://twse-mcp.taux.io/mcp",
+  "expected_codes": [
+    "3037",
+    "8046",
+    "3189",
+    "1802",
+    "1303",
+    "2408",
+    "8358",
+    "6147"
+  ],
+  "received_codes": [
+    "3037",
+    "8046",
+    "3189",
+    "1802",
+    "1303",
+    "2408",
+    "8358",
+    "6147"
+  ],
+  "fresh_trade_codes_le_5m": [
+    "1802"
+  ],
+  "missing_codes": [],
+  "stale_date_codes": [],
+  "errors": [],
+  "success": true
 }
