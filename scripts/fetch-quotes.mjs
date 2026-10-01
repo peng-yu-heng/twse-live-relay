@@ -121,12 +121,33 @@ async function main() {
   const errors = [];
 
   for (const g of GROUPS) {
+    const latestByCode = new Map();
     try {
-      const result = await rpc('tools/call', { name: 'quote.realtime', arguments: { codes: g.codes, market: g.market } });
-      if (result?.isError) throw new Error(result.content?.map(x => x.text).join(' ') || 'quote.realtime isError');
-      const data = body(result);
-      for (const q of data.quotes ?? []) collected.push(normalize(q, g.market, previousByCode, taipei.local));
-      for (const c of data.caveats ?? []) errors.push(`[${g.market}] caveat: ${c}`);
+      // MIS may return last="-" for a 5-second slice with no trade.
+      // Sample several times and preserve the newest genuine last trade per code.
+      for (let attempt = 0; attempt < 6; attempt++) {
+        const result = await rpc('tools/call', { name: 'quote.realtime', arguments: { codes: g.codes, market: g.market } });
+        if (result?.isError) throw new Error(result.content?.map(x => x.text).join(' ') || 'quote.realtime isError');
+        const data = body(result);
+        for (const q of data.quotes ?? []) {
+          const prior = latestByCode.get(q.code);
+          if (!prior) {
+            latestByCode.set(q.code, q);
+          } else {
+            // Always keep the newest snapshot fields, but don't overwrite a genuine last trade with "-".
+            latestByCode.set(q.code, {
+              ...q,
+              last: numericOrNull(q.last) != null ? q.last : prior.last,
+              time: numericOrNull(q.last) != null ? q.time : prior.time,
+            });
+          }
+        }
+        for (const caveat of data.caveats ?? []) errors.push(`[${g.market}] caveat: ${caveat}`);
+        const gotAllLast = g.codes.every(code => numericOrNull(latestByCode.get(code)?.last) != null);
+        if (gotAllLast) break;
+        if (attempt < 5) await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+      for (const q of latestByCode.values()) collected.push(normalize(q, g.market, previousByCode, taipei.local));
     } catch (e) {
       errors.push(`[${g.market}] ${e?.message ?? String(e)}`);
     }
