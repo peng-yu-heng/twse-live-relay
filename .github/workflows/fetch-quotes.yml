@@ -2,8 +2,6 @@ name: Fetch Taiwan live quotes
 
 on:
   workflow_dispatch:
-  issues:
-    types: [opened]
   push:
     branches: [main]
     paths:
@@ -19,6 +17,10 @@ on:
 
 permissions:
   contents: write
+
+concurrency:
+  group: twse-live-relay
+  cancel-in-progress: false
 
 jobs:
   fetch:
@@ -42,4 +44,5 @@ jobs:
             exit 0
           fi
           git commit -m "quotes: update live snapshot"
+          git pull --rebase origin main
           git push
