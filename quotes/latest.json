@@ -1,0 +1,8 @@
+{
+  "fetched_at": null,
+  "trading_date": null,
+  "source": "TWSE MIS (mis.twse.com.tw) via taux-io/twse-mcp",
+  "freshness_rule": "Use trade price only when quote date is today and last_trade_age_seconds <= 300. Never substitute bid/ask as last trade.",
+  "quotes": [],
+  "errors": []
+}
