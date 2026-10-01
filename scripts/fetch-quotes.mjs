@@ -79,9 +79,10 @@ function normalize(q, market, previousByCode, runLocal) {
   const currentLast = numericOrNull(q.last);
   const prev = previousByCode.get(q.code);
   const sameDatePrev = prev && prev.date === q.date ? prev : null;
+  const observedLastTime = q._last_trade_time ?? null;
   const carried = currentLast == null && sameDatePrev?.last_trade != null;
   const lastTrade = currentLast ?? (carried ? sameDatePrev.last_trade : null);
-  const lastTradeTime = currentLast != null ? q.time ?? null : (carried ? sameDatePrev.last_trade_time : null);
+  const lastTradeTime = currentLast != null ? (observedLastTime ?? q.time ?? null) : (carried ? sameDatePrev.last_trade_time : null);
 
   let tradeAgeSeconds = null;
   if (q.date && lastTradeTime) {
@@ -90,18 +91,33 @@ function normalize(q, market, previousByCode, runLocal) {
     if (Number.isFinite(t) && Number.isFinite(n)) tradeAgeSeconds = Math.max(0, Math.floor((n - t) / 1000));
   }
 
+  let snapshotAgeSeconds = null;
+  if (q.date && q.time) {
+    const t = Date.parse(`${q.date}T${q.time}+08:00`);
+    const n = Date.parse(runLocal);
+    if (Number.isFinite(t) && Number.isFinite(n)) snapshotAgeSeconds = Math.max(0, Math.floor((n - t) / 1000));
+  }
+
+  const bid = numericOrNull(q.bid);
+  const ask = numericOrNull(q.ask);
+  const tradeUsable = q.date === runLocal.slice(0, 10) && tradeAgeSeconds != null && tradeAgeSeconds <= 300;
+  const bidAskUsable = q.date === runLocal.slice(0, 10) && snapshotAgeSeconds != null && snapshotAgeSeconds <= 300 && bid != null && ask != null;
+  const analysisMode = tradeUsable ? 'last_trade' : bidAskUsable ? 'bid_ask_only' : 'unusable';
+
   return {
     code: q.code ?? null,
     name: q.name ?? null,
     market,
     date: q.date ?? null,
     snapshot_time: q.time ?? null,
+    snapshot_age_seconds: snapshotAgeSeconds,
     last_trade: lastTrade,
     last_trade_time: lastTradeTime,
     last_trade_age_seconds: tradeAgeSeconds,
     carried_forward_last_trade: carried,
-    bid: numericOrNull(q.bid),
-    ask: numericOrNull(q.ask),
+    bid,
+    ask,
+    analysis_mode: analysisMode,
     open: numericOrNull(q.open),
     high: numericOrNull(q.high),
     low: numericOrNull(q.low),
@@ -121,33 +137,33 @@ async function main() {
   const errors = [];
 
   for (const g of GROUPS) {
-    const latestByCode = new Map();
+    const latestSnapshotByCode = new Map();
+    const lastObservedByCode = new Map();
     try {
-      // MIS may return last="-" for a 5-second slice with no trade.
-      // Sample several times and preserve the newest genuine last trade per code.
+      // MIS may return last="-" when that slice has no trade.
+      // Keep the newest snapshot fields separately from the newest genuine last trade.
       for (let attempt = 0; attempt < 6; attempt++) {
         const result = await rpc('tools/call', { name: 'quote.realtime', arguments: { codes: g.codes, market: g.market } });
         if (result?.isError) throw new Error(result.content?.map(x => x.text).join(' ') || 'quote.realtime isError');
         const data = body(result);
         for (const q of data.quotes ?? []) {
-          const prior = latestByCode.get(q.code);
-          if (!prior) {
-            latestByCode.set(q.code, q);
-          } else {
-            // Always keep the newest snapshot fields, but don't overwrite a genuine last trade with "-".
-            latestByCode.set(q.code, {
-              ...q,
-              last: numericOrNull(q.last) != null ? q.last : prior.last,
-              time: numericOrNull(q.last) != null ? q.time : prior.time,
-            });
+          latestSnapshotByCode.set(q.code, q);
+          if (numericOrNull(q.last) != null) {
+            lastObservedByCode.set(q.code, { last: q.last, time: q.time ?? null });
           }
         }
         for (const caveat of data.caveats ?? []) errors.push(`[${g.market}] caveat: ${caveat}`);
-        const gotAllLast = g.codes.every(code => numericOrNull(latestByCode.get(code)?.last) != null);
+        const gotAllLast = g.codes.every(code => lastObservedByCode.has(code));
         if (gotAllLast) break;
         if (attempt < 5) await new Promise(resolve => setTimeout(resolve, 2000));
       }
-      for (const q of latestByCode.values()) collected.push(normalize(q, g.market, previousByCode, taipei.local));
+      for (const [code, snapshot] of latestSnapshotByCode.entries()) {
+        const observed = lastObservedByCode.get(code);
+        const merged = observed
+          ? { ...snapshot, last: observed.last, _last_trade_time: observed.time }
+          : snapshot;
+        collected.push(normalize(merged, g.market, previousByCode, taipei.local));
+      }
     } catch (e) {
       errors.push(`[${g.market}] ${e?.message ?? String(e)}`);
     }
@@ -157,7 +173,9 @@ async function main() {
   const expected = GROUPS.flatMap(g => g.codes);
   const missing = expected.filter(c => !byCode.has(c));
   const staleDate = collected.filter(q => q.date !== taipei.isoDate).map(q => q.code);
-  const fresh = collected.filter(q => q.date === taipei.isoDate && q.last_trade_age_seconds != null && q.last_trade_age_seconds <= 300).map(q => q.code);
+  const fresh = collected.filter(q => q.analysis_mode === 'last_trade').map(q => q.code);
+  const bidAskOnly = collected.filter(q => q.analysis_mode === 'bid_ask_only').map(q => q.code);
+  const unusable = collected.filter(q => q.analysis_mode === 'unusable').map(q => q.code);
 
   const status = {
     attempted_at: taipei.local,
@@ -166,10 +184,12 @@ async function main() {
     expected_codes: expected,
     received_codes: collected.map(q => q.code),
     fresh_trade_codes_le_5m: fresh,
+    fresh_bid_ask_only_codes_le_5m: bidAskOnly,
+    unusable_codes: unusable,
     missing_codes: missing,
     stale_date_codes: staleDate,
     errors,
-    success: missing.length === 0 && staleDate.length === 0 && errors.filter(x => !x.includes('caveat:')).length === 0,
+    success: missing.length === 0 && staleDate.length === 0 && unusable.length === 0 && errors.filter(x => !x.includes('caveat:')).length === 0,
   };
 
   await writeFile(STATUS, JSON.stringify(status, null, 2) + '\n');
@@ -179,7 +199,7 @@ async function main() {
       fetched_at: taipei.local,
       trading_date: taipei.isoDate,
       source: 'TWSE MIS (mis.twse.com.tw) via taux-io/twse-mcp',
-      freshness_rule: 'Use trade price only when quote date is today and last_trade_age_seconds <= 300. Never substitute bid/ask as last trade.',
+      freshness_rule: 'Use last_trade only when last_trade_age_seconds <= 300. If last_trade is unavailable but bid/ask snapshot_age_seconds <= 300, use analysis_mode=bid_ask_only and never label bid/ask as a trade price.',
       quotes: expected.map(c => byCode.get(c)).filter(Boolean),
       errors,
     };
