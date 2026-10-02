@@ -8,10 +8,14 @@ on:
       - 'scripts/fetch-quotes.mjs'
       - '.github/workflows/fetch-quotes.yml'
   schedule:
-    # Taiwan 09:21, 09:26, 09:31, 09:36 every calendar day.
+    # Taiwan 09:06 refresh for the 09:10 report.
+    - cron: '6 1 * * *'
+    # Taiwan 09:21, 09:26, 09:31, 09:36.
     - cron: '21,26,31,36 1 * * *'
-    # Taiwan 12:51, 12:56.
-    - cron: '51,56 4 * * *'
+    # Taiwan 10:45, 10:50, 10:55 refreshes for the 11:00 report.
+    - cron: '45,50,55 2 * * *'
+    # Taiwan 12:45, 12:50, 12:55 refreshes for the 13:00 report.
+    - cron: '45,50,55 4 * * *'
     # Taiwan 13:01, 13:06.
     - cron: '1,6 5 * * *'
 
