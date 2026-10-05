@@ -31,6 +31,8 @@ function numericOrNull(v) {
   return Number.isFinite(n) ? n : null;
 }
 
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
 async function rpc(method, params = {}) {
   const headers = {
     'content-type': 'application/json',
@@ -128,6 +130,46 @@ function normalize(q, market, previousByCode, runLocal) {
   };
 }
 
+async function fetchCodes(codes, market, previousByCode, taipei, errors) {
+  const latestSnapshotByCode = new Map();
+  const lastObservedByCode = new Map();
+  const pending = new Set(codes);
+  const maxAttempts = 5;
+
+  for (let attempt = 1; attempt <= maxAttempts && pending.size; attempt++) {
+    // Query each symbol independently. A 520 for one symbol must not take the whole market batch down.
+    for (const code of [...pending]) {
+      try {
+        const result = await rpc('tools/call', { name: 'quote.realtime', arguments: { codes: [code], market } });
+        if (result?.isError) throw new Error(result.content?.map(x => x.text).join(' ') || 'quote.realtime isError');
+        const data = body(result);
+        const q = (data.quotes ?? []).find(x => x.code === code);
+        if (!q) throw new Error('empty quote response');
+        latestSnapshotByCode.set(code, q);
+        if (numericOrNull(q.last) != null) lastObservedByCode.set(code, { last: q.last, time: q.time ?? null });
+        const normalized = normalize(
+          lastObservedByCode.has(code) ? { ...q, last: lastObservedByCode.get(code).last, _last_trade_time: lastObservedByCode.get(code).time } : q,
+          market, previousByCode, taipei.local
+        );
+        // A current-date snapshot is enough to stop network retries. Freshness is still enforced later.
+        if (normalized.date === taipei.isoDate) pending.delete(code);
+        for (const caveat of data.caveats ?? []) errors.push(`[${market}:${code}] caveat: ${caveat}`);
+      } catch (e) {
+        errors.push(`[${market}:${code}] attempt ${attempt}/${maxAttempts}: ${e?.message ?? String(e)}`);
+      }
+      await sleep(250);
+    }
+    if (pending.size && attempt < maxAttempts) await sleep(Math.min(15000, 1500 * 2 ** (attempt - 1)));
+  }
+
+  return codes.map(code => {
+    const snapshot = latestSnapshotByCode.get(code);
+    if (!snapshot) return null;
+    const observed = lastObservedByCode.get(code);
+    return normalize(observed ? { ...snapshot, last: observed.last, _last_trade_time: observed.time } : snapshot, market, previousByCode, taipei.local);
+  }).filter(Boolean);
+}
+
 async function main() {
   await mkdir(new URL('../quotes/', import.meta.url), { recursive: true });
   const prev = await readPrevious();
@@ -137,36 +179,8 @@ async function main() {
   const errors = [];
 
   for (const g of GROUPS) {
-    const latestSnapshotByCode = new Map();
-    const lastObservedByCode = new Map();
-    try {
-      // MIS may return last="-" when that slice has no trade.
-      // Keep the newest snapshot fields separately from the newest genuine last trade.
-      for (let attempt = 0; attempt < 6; attempt++) {
-        const result = await rpc('tools/call', { name: 'quote.realtime', arguments: { codes: g.codes, market: g.market } });
-        if (result?.isError) throw new Error(result.content?.map(x => x.text).join(' ') || 'quote.realtime isError');
-        const data = body(result);
-        for (const q of data.quotes ?? []) {
-          latestSnapshotByCode.set(q.code, q);
-          if (numericOrNull(q.last) != null) {
-            lastObservedByCode.set(q.code, { last: q.last, time: q.time ?? null });
-          }
-        }
-        for (const caveat of data.caveats ?? []) errors.push(`[${g.market}] caveat: ${caveat}`);
-        const gotAllLast = g.codes.every(code => lastObservedByCode.has(code));
-        if (gotAllLast) break;
-        if (attempt < 5) await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-      for (const [code, snapshot] of latestSnapshotByCode.entries()) {
-        const observed = lastObservedByCode.get(code);
-        const merged = observed
-          ? { ...snapshot, last: observed.last, _last_trade_time: observed.time }
-          : snapshot;
-        collected.push(normalize(merged, g.market, previousByCode, taipei.local));
-      }
-    } catch (e) {
-      errors.push(`[${g.market}] ${e?.message ?? String(e)}`);
-    }
+    const rows = await fetchCodes(g.codes, g.market, previousByCode, taipei, errors);
+    collected.push(...rows);
   }
 
   const byCode = new Map(collected.map(q => [q.code, q]));
@@ -179,7 +193,7 @@ async function main() {
 
   const status = {
     attempted_at: taipei.local,
-    source: 'TWSE MIS via taux-io/twse-mcp Cloudflare relay',
+    source: 'TWSE MIS via taux-io/twse-mcp Cloudflare relay; per-symbol retry isolation',
     endpoint: ENDPOINT,
     expected_codes: expected,
     received_codes: collected.map(q => q.code),
