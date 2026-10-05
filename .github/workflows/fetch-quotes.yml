@@ -4,9 +4,6 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths:
-      - 'scripts/fetch-quotes.mjs'
-      - '.github/workflows/fetch-quotes.yml'
   schedule:
     # GitHub cron is best-effort. Run every 5 minutes during the TWSE/TPEx
     # session window (UTC 01:00-05:59 = Taipei 09:00-13:59), weekdays.
