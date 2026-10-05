@@ -8,16 +8,10 @@ on:
       - 'scripts/fetch-quotes.mjs'
       - '.github/workflows/fetch-quotes.yml'
   schedule:
-    # Taiwan 09:06 refresh for the 09:10 report (weekdays only).
-    - cron: '6 1 * * 1-5'
-    # Taiwan 09:21, 09:26, 09:31, 09:36.
-    - cron: '21,26,31,36 1 * * 1-5'
-    # Taiwan 10:45, 10:50, 10:55 refreshes for the 11:00 report.
-    - cron: '45,50,55 2 * * 1-5'
-    # Taiwan 12:45, 12:50, 12:55 refreshes for the 13:00 report.
-    - cron: '45,50,55 4 * * 1-5'
-    # Taiwan 13:01, 13:06.
-    - cron: '1,6 5 * * 1-5'
+    # GitHub cron is best-effort. Run every 5 minutes during the TWSE/TPEx
+    # session window (UTC 01:00-05:59 = Taipei 09:00-13:59), weekdays.
+    # The script/report layer still validates trading_date and freshness.
+    - cron: '*/5 1-5 * * 1-5'
 
 permissions:
   contents: write
@@ -29,13 +23,15 @@ concurrency:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 4
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
       - name: Fetch TWSE/OTC live quotes
+        id: fetch
+        continue-on-error: true
         run: node scripts/fetch-quotes.mjs
       - name: Commit latest quote snapshot
         if: always()
@@ -45,8 +41,14 @@ jobs:
           git add quotes/latest.json quotes/status.json || true
           if git diff --cached --quiet; then
             echo "No quote changes"
-            exit 0
+          else
+            git commit -m "quotes: update live snapshot"
+            for i in 1 2 3; do
+              git pull --rebase origin main && git push && break
+              echo "push attempt $i failed; retrying"
+              sleep $((i * 5))
+            done
           fi
-          git commit -m "quotes: update live snapshot"
-          git pull --rebase origin main
-          git push
+      - name: Fail run if quote fetch failed
+        if: steps.fetch.outcome != 'success'
+        run: exit 1
