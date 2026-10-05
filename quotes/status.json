@@ -1,5 +1,5 @@
 {
-  "attempted_at": "2026-10-05T10:04:24+08:00",
+  "attempted_at": "2026-10-05T13:32:55+08:00",
   "source": "TWSE MIS via taux-io/twse-mcp Cloudflare relay; per-symbol retry isolation",
   "endpoint": "https://twse-mcp.taux.io/mcp",
   "expected_codes": [
@@ -23,25 +23,19 @@
     "6147"
   ],
   "fresh_trade_codes_le_5m": [
-    "1802",
-    "1303",
-    "6147"
-  ],
-  "fresh_bid_ask_only_codes_le_5m": [
     "3037",
     "8046",
     "3189",
+    "1802",
+    "1303",
     "2408",
-    "8358"
+    "8358",
+    "6147"
   ],
+  "fresh_bid_ask_only_codes_le_5m": [],
   "unusable_codes": [],
   "missing_codes": [],
   "stale_date_codes": [],
-  "errors": [
-    "[tse:8046] attempt 1/5: HTTP 520 for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_8046.tw&json=1&delay=0",
-    "[tse:3189] attempt 1/5: HTTP 520 for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_3189.tw&json=1&delay=0",
-    "[tse:1802] attempt 1/5: HTTP 520 for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_1802.tw&json=1&delay=0",
-    "[tse:1303] attempt 1/5: HTTP 520 for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_1303.tw&json=1&delay=0"
-  ],
-  "success": false
+  "errors": [],
+  "success": true
 }
