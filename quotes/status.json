@@ -1,5 +1,5 @@
 {
-  "attempted_at": "2026-10-04T18:49:57+08:00",
+  "attempted_at": "2026-10-05T10:00:38+08:00",
   "source": "TWSE MIS via taux-io/twse-mcp Cloudflare relay",
   "endpoint": "https://twse-mcp.taux.io/mcp",
   "expected_codes": [
@@ -12,19 +12,11 @@
     "8358",
     "6147"
   ],
-  "received_codes": [
-    "3037",
-    "8046",
-    "3189",
-    "1802",
-    "1303",
-    "2408",
-    "8358",
-    "6147"
-  ],
+  "received_codes": [],
   "fresh_trade_codes_le_5m": [],
   "fresh_bid_ask_only_codes_le_5m": [],
-  "unusable_codes": [
+  "unusable_codes": [],
+  "missing_codes": [
     "3037",
     "8046",
     "3189",
@@ -34,17 +26,10 @@
     "8358",
     "6147"
   ],
-  "missing_codes": [],
-  "stale_date_codes": [
-    "3037",
-    "8046",
-    "3189",
-    "1802",
-    "1303",
-    "2408",
-    "8358",
-    "6147"
+  "stale_date_codes": [],
+  "errors": [
+    "[tse] HTTP 520 for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_3037.tw|tse_8046.tw|tse_3189.tw|tse_1802.tw|tse_1303.tw|tse_2408.tw&json=1&delay=0",
+    "[otc] HTTP 520 for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=otc_8358.tw|otc_6147.tw&json=1&delay=0"
   ],
-  "errors": [],
   "success": false
 }
