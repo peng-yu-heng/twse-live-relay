@@ -33,18 +33,41 @@ jobs:
       - name: Commit latest quote snapshot
         if: always()
         run: |
+          set -euo pipefail
           git config user.name "twse-live-relay-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add quotes/latest.json quotes/status.json || true
-          if git diff --cached --quiet; then
-            echo "No quote changes"
-          else
+
+          snapshot_dir="$(mktemp -d)"
+          cp quotes/latest.json "$snapshot_dir/latest.json"
+          cp quotes/status.json "$snapshot_dir/status.json"
+
+          pushed=false
+          for i in 1 2 3; do
+            git rebase --abort 2>/dev/null || true
+            git fetch origin main
+            git reset --hard origin/main
+            cp "$snapshot_dir/latest.json" quotes/latest.json
+            cp "$snapshot_dir/status.json" quotes/status.json
+            git add quotes/latest.json quotes/status.json
+
+            if git diff --cached --quiet; then
+              echo "No quote changes"
+              pushed=true
+              break
+            fi
+
             git commit -m "quotes: update live snapshot"
-            for i in 1 2 3; do
-              git pull --rebase origin main && git push && break
-              echo "push attempt $i failed; retrying"
-              sleep $((i * 5))
-            done
+            if git push origin HEAD:main; then
+              pushed=true
+              break
+            fi
+            echo "push attempt $i failed; refreshing main and retrying"
+            sleep $((i * 5))
+          done
+
+          if [ "$pushed" != true ]; then
+            echo "Failed to publish quote snapshot after 3 attempts"
+            exit 1
           fi
       - name: Fail run if quote fetch failed
         if: steps.fetch.outcome != 'success'
