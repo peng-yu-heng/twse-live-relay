@@ -1,5 +1,5 @@
 {
-  "attempted_at": "2026-10-08T15:09:06+08:00",
+  "attempted_at": "2026-10-09T15:14:03+08:00",
   "source": "TWSE MIS via taux-io/twse-mcp Cloudflare relay; per-symbol retry isolation",
   "endpoint": "https://twse-mcp.taux.io/mcp",
   "expected_codes": [
@@ -35,7 +35,16 @@
     "6147"
   ],
   "missing_codes": [],
-  "stale_date_codes": [],
+  "stale_date_codes": [
+    "3037",
+    "8046",
+    "3189",
+    "1802",
+    "1303",
+    "2408",
+    "8358",
+    "6147"
+  ],
   "errors": [],
   "success": false
 }
