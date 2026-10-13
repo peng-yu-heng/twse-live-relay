@@ -8,10 +8,13 @@ on:
       - 'quotes/**'
       - 'analysis/**'
   schedule:
-    # GitHub cron is best-effort. Run every 5 minutes during the TWSE/TPEx
-    # session window (UTC 01:00-05:59 = Taipei 09:00-13:59), weekdays.
-    # The script/report layer still validates trading_date and freshness.
-    - cron: '*/5 1-5 * * 1-5'
+    # GitHub cron is best-effort, so use redundant refreshes immediately
+    # before each report instead of relying on a long every-5-minute chain.
+    # UTC -> Asia/Taipei (+8): 01:25/01:28 = 09:25/09:28,
+    # 02:55/02:58 = 10:55/10:58, 04:55/04:58 = 12:55/12:58.
+    - cron: '25,28 1 * * 1-5'
+    - cron: '55,58 2 * * 1-5'
+    - cron: '55,58 4 * * 1-5'
 
 permissions:
   contents: write
