@@ -35,6 +35,30 @@ function rsiWilder(closes, period){
   return 100-(100/(1+rs));
 }
 
+function kdWilder(rows, period=9){
+  if(rows.length < period) return {k:null,d:null,prevK:null,prevD:null,cross:null,kDirection:null,dDirection:null};
+  let k=50,d=50,prevK=null,prevD=null,updates=0;
+  for(let i=period-1;i<rows.length;i++){
+    const window=rows.slice(i-period+1,i+1);
+    const high=Math.max(...window.map(r=>r.high));
+    const low=Math.min(...window.map(r=>r.low));
+    const rsv=high===low?50:100*(rows[i].close-low)/(high-low);
+    prevK=k; prevD=d;
+    k=(2*k+rsv)/3;
+    d=(2*d+k)/3;
+    updates++;
+  }
+  if(updates<2) return {k,d,prevK:null,prevD:null,cross:null,kDirection:null,dDirection:null};
+  let cross='none';
+  if(prevK<=prevD && k>d) cross='golden_cross';
+  else if(prevK>=prevD && k<d) cross='death_cross';
+  return {
+    k,d,prevK,prevD,cross,
+    kDirection:k>prevK?'up':k<prevK?'down':'flat',
+    dDirection:d>prevD?'up':d<prevD?'down':'flat'
+  };
+}
+
 function atrWilder(rows, period=14){
   if(rows.length < period+1) return null;
   const tr=[];
@@ -68,7 +92,12 @@ async function fetchYahoo(s){
 
 await mkdir('analysis',{recursive:true});
 const today=taipeiDate();
-const out={generated_at:new Date().toISOString(), indicator_basis:'Completed daily bars only. Unadjusted OHLC. RSI uses Wilder smoothing. ATR14 uses Wilder true range.', stocks:[], errors:[]};
+const out={
+  generated_at:new Date().toISOString(),
+  indicator_basis:'Completed daily bars only. Unadjusted OHLC. RSI5/10/14 use Wilder smoothing. KD(9,3,3) uses 9-day RSV with K and D initialized at 50 and 1/3 smoothing. ATR14 uses Wilder true range.',
+  stocks:[],
+  errors:[]
+};
 
 for(const s of STOCKS){
   try{
@@ -77,12 +106,18 @@ for(const s of STOCKS){
     const closes=rows.map(r=>r.close);
     const vols=rows.map(r=>r.volume).filter(v=>Number.isFinite(v));
     const last=rows.at(-1);
+    const rsi14=rsiWilder(closes,14);
+    const rsi14Prev=rsiWilder(closes.slice(0,-1),14);
+    const kd=kdWilder(rows,9);
     out.stocks.push({
       ...s,
       last_completed_date:last?.date??null,
       last_completed_close:last?.close??null,
       ma5:ma(closes,5), ma10:ma(closes,10), ma20:ma(closes,20), ma60:ma(closes,60),
       rsi5:rsiWilder(closes,5), rsi10:rsiWilder(closes,10),
+      rsi14, rsi14_prev:rsi14Prev, rsi14_change:rsi14!=null&&rsi14Prev!=null?rsi14-rsi14Prev:null,
+      kd_period:'9,3,3', kd_k:kd.k, kd_d:kd.d, kd_prev_k:kd.prevK, kd_prev_d:kd.prevD,
+      kd_cross:kd.cross, kd_k_direction:kd.kDirection, kd_d_direction:kd.dDirection,
       atr14:atrWilder(rows,14),
       avg_volume5: vols.length>=5?mean(vols.slice(-5)):null,
       avg_volume20: vols.length>=20?mean(vols.slice(-20)):null,
@@ -97,4 +132,3 @@ for(const s of STOCKS){
 await writeFile('analysis/technicals.json',JSON.stringify(out,null,2)+'\n');
 console.log(JSON.stringify(out,null,2));
 if(out.stocks.length<8) process.exitCode=1;
-// run-trigger: 2026-10-01 intraday report
