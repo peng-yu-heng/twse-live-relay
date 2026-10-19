@@ -170,6 +170,44 @@ async function fetchCodes(codes, market, previousByCode, taipei, errors) {
   }).filter(Boolean);
 }
 
+// Independent backup from the exchange MIS, not from the Cloudflare MCP relay.
+// A missing last_trade from the relay must not silently become a buy/ask price.
+async function fetchDirectMisLastTrades(taipei, errors) {
+  try {
+    const channels = GROUPS.flatMap(g => g.codes.map(code => `${g.market}_${code}.tw`));
+    const url = new URL('https://mis.twse.com.tw/stock/api/getStockInfo.jsp');
+    url.searchParams.set('ex_ch', channels.join('|'));
+    url.searchParams.set('json', '1');
+    url.searchParams.set('delay', '0');
+    url.searchParams.set('_', String(Date.now()));
+    const response = await fetch(url, {
+      headers: { 'accept': 'application/json', 'user-agent': 'Mozilla/5.0' },
+      signal: AbortSignal.timeout(9000),
+    });
+    if (!response.ok) throw new Error(`MIS HTTP ${response.status}`);
+    const data = await response.json();
+    const out = new Map();
+    for (const x of data.msgArray ?? []) {
+      if (!GROUPS.some(g => g.codes.includes(x.c))) continue;
+      const date = String(x.d ?? '').replace(/^(\\d{4})(\\d{2})(\\d{2})$/, '$1-$2-$3');
+      const last = numericOrNull(x.z);
+      const time = x.t ?? null;
+      if (date !== taipei.isoDate || last == null || !/^\\d{2}:\\d{2}:\\d{2}$/.test(time ?? '')) continue;
+      const tradeEpoch = Date.parse(`${date}T${time}+08:00`);
+      const runEpoch = Date.parse(taipei.local);
+      const age = Math.floor((runEpoch - tradeEpoch) / 1000);
+      if (!Number.isFinite(age) || age < 0 || age > 300) continue;
+      out.set(x.c, { last, time, age });
+    }
+    return out;
+  } catch (e) {
+    // A blocked official endpoint is an explicitly recorded backup failure,
+    // not a reason to relabel stale quotes as current trades.
+    errors.push(`[direct-MIS-backup] ${e?.message ?? String(e)}`);
+    return new Map();
+  }
+}
+
 async function main() {
   await mkdir(new URL('../quotes/', import.meta.url), { recursive: true });
   const prev = await readPrevious();
@@ -181,6 +219,20 @@ async function main() {
   for (const g of GROUPS) {
     const rows = await fetchCodes(g.codes, g.market, previousByCode, taipei, errors);
     collected.push(...rows);
+  }
+
+  // Only upgrade missing/stale last-trade values when MIS has today's
+  // independently time-validated trade. Bid/ask timestamps are unchanged.
+  const directTrades = await fetchDirectMisLastTrades(taipei, errors);
+  for (const q of collected) {
+    const direct = directTrades.get(q.code);
+    if (!direct || (q.analysis_mode === 'last_trade' && (q.last_trade_age_seconds ?? 1e9) <= direct.age)) continue;
+    q.last_trade = direct.last;
+    q.last_trade_time = direct.time;
+    q.last_trade_age_seconds = direct.age;
+    q.carried_forward_last_trade = false;
+    q.analysis_mode = 'last_trade';
+    q.last_trade_source = 'TWSE MIS direct independent fallback';
   }
 
   const byCode = new Map(collected.map(q => [q.code, q]));
@@ -203,7 +255,7 @@ async function main() {
     missing_codes: missing,
     stale_date_codes: staleDate,
     errors,
-    success: missing.length === 0 && staleDate.length === 0 && unusable.length === 0 && errors.filter(x => !x.includes('caveat:')).length === 0,
+    success: missing.length === 0 && staleDate.length === 0 && unusable.length === 0 && errors.filter(x => !x.includes('caveat:') && !x.startsWith('[direct-MIS-backup]')).length === 0,
   };
 
   await writeFile(STATUS, JSON.stringify(status, null, 2) + '\n');
