@@ -189,10 +189,10 @@ async function fetchDirectMisLastTrades(taipei, errors) {
     const out = new Map();
     for (const x of data.msgArray ?? []) {
       if (!GROUPS.some(g => g.codes.includes(x.c))) continue;
-      const date = String(x.d ?? '').replace(/^(\\d{4})(\\d{2})(\\d{2})$/, '$1-$2-$3');
+      const date = String(x.d ?? '').replace(/^(\d{4})(\d{2})(\d{2})$/, '$1-$2-$3');
       const last = numericOrNull(x.z);
       const time = x.t ?? null;
-      if (date !== taipei.isoDate || last == null || !/^\\d{2}:\\d{2}:\\d{2}$/.test(time ?? '')) continue;
+      if (date !== taipei.isoDate || last == null || !/^\d{2}:\d{2}:\d{2}$/.test(time ?? '')) continue;
       const tradeEpoch = Date.parse(`${date}T${time}+08:00`);
       const runEpoch = Date.parse(taipei.local);
       const age = Math.floor((runEpoch - tradeEpoch) / 1000);
