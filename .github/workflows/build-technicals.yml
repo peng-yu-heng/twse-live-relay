@@ -11,6 +11,7 @@ on:
     branches: [main]
     paths:
       - 'scripts/build-technicals.mjs'
+      - '.github/workflows/build-technicals.yml'
 
 permissions:
   contents: write
