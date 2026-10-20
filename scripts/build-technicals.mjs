@@ -106,6 +106,8 @@ for(const s of STOCKS){
     const closes=rows.map(r=>r.close);
     const vols=rows.map(r=>r.volume).filter(v=>Number.isFinite(v));
     const last=rows.at(-1);
+    const rsi5=rsiWilder(closes,5), rsi5Prev=rsiWilder(closes.slice(0,-1),5);
+    const rsi10=rsiWilder(closes,10), rsi10Prev=rsiWilder(closes.slice(0,-1),10);
     const rsi14=rsiWilder(closes,14);
     const rsi14Prev=rsiWilder(closes.slice(0,-1),14);
     const kd=kdWilder(rows,9);
@@ -114,7 +116,8 @@ for(const s of STOCKS){
       last_completed_date:last?.date??null,
       last_completed_close:last?.close??null,
       ma5:ma(closes,5), ma10:ma(closes,10), ma20:ma(closes,20), ma60:ma(closes,60),
-      rsi5:rsiWilder(closes,5), rsi10:rsiWilder(closes,10),
+      rsi5, rsi5_prev:rsi5Prev, rsi5_change:rsi5!=null&&rsi5Prev!=null?rsi5-rsi5Prev:null,
+      rsi10, rsi10_prev:rsi10Prev, rsi10_change:rsi10!=null&&rsi10Prev!=null?rsi10-rsi10Prev:null,
       rsi14, rsi14_prev:rsi14Prev, rsi14_change:rsi14!=null&&rsi14Prev!=null?rsi14-rsi14Prev:null,
       kd_period:'9,3,3', kd_k:kd.k, kd_d:kd.d, kd_prev_k:kd.prevK, kd_prev_d:kd.prevD,
       kd_cross:kd.cross, kd_k_direction:kd.kDirection, kd_d_direction:kd.dDirection,
