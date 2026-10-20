@@ -255,12 +255,15 @@ async function main() {
     missing_codes: missing,
     stale_date_codes: staleDate,
     errors,
-    success: missing.length === 0 && staleDate.length === 0 && unusable.length === 0 && errors.filter(x => !x.includes('caveat:') && !x.startsWith('[direct-MIS-backup]')).length === 0,
+    // Completion is based on the FINAL verified quotes, not transient recovered retries.
+    success: collected.length === expected.length && missing.length === 0 && staleDate.length === 0 && unusable.length === 0,
   };
 
   await writeFile(STATUS, JSON.stringify(status, null, 2) + '\n');
 
-  if (collected.length) {
+  // Never overwrite the last verified snapshot with an invalid/out-of-session poll.
+  // The separate status.json records the failure for downstream alerting.
+  if (status.success) {
     const latest = {
       fetched_at: taipei.local,
       trading_date: taipei.isoDate,
@@ -273,7 +276,10 @@ async function main() {
   }
 
   console.log(JSON.stringify(status, null, 2));
-  if (!collected.length) process.exitCode = 1;
+  if (!status.success) {
+    console.error('LIVE_QUOTE_VALIDATION_FAILED: one or more codes are missing, stale or unusable. See quotes/status.json.');
+    process.exitCode = 1;
+  }
 }
 
 main().catch(async (e) => {
