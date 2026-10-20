@@ -9,7 +9,7 @@ on:
       - 'analysis/**'
   schedule:
     # GitHub scheduled jobs are best-effort; poll throughout trading hours.
-    # Recovery trigger: 2026-10-19 quote relay refresh after missed scheduled executions.
+    # Recovery trigger: 2026-10-20 morning retry after missing scheduled quote refresh.
     # UTC 01:00-05:59 = Taiwan 09:00-13:59, weekdays.
     - cron: '*/5 1-5 * * 1-5'
     # Additional offset polling close to the three scheduled reports.
