@@ -2,6 +2,7 @@ name: Build technical indicators
 
 on:
   workflow_dispatch:
+  # Manual recovery trigger: 2026-10-21 09:36 Asia/Taipei.
   schedule:
     # Multiple off-minute checks, since GitHub scheduled starts can be delayed.
     # Taiwan 08:43 / 08:53 / 14:15 on weekdays.
