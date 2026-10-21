@@ -1,5 +1,5 @@
 {
-  "attempted_at": "2026-10-21T17:42:35+08:00",
+  "attempted_at": "2026-10-21T18:34:06+08:00",
   "source": "TWSE MIS via taux-io/twse-mcp Cloudflare relay; per-symbol retry isolation",
   "endpoint": "https://twse-mcp.taux.io/mcp",
   "expected_codes": [
@@ -36,8 +36,6 @@
   ],
   "missing_codes": [],
   "stale_date_codes": [],
-  "errors": [
-    "[tse:3037] attempt 1/5: 上游逾時（8 秒沒有回應）for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_3037.tw&json=1&delay=0"
-  ],
+  "errors": [],
   "success": false
 }
