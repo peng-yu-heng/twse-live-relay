@@ -2,7 +2,7 @@ name: Fetch Taiwan live quotes
 
 on:
   workflow_dispatch:
-  # Manual recovery trigger: 2026-10-22 09:40 Asia/Taipei.
+  # Manual recovery trigger: 2026-10-22 12:58 Asia/Taipei.
   push:
     branches: [main]
     paths-ignore:
