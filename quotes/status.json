@@ -1,5 +1,5 @@
 {
-  "attempted_at": "2026-10-22T09:33:42+08:00",
+  "attempted_at": "2026-10-22T09:34:30+08:00",
   "source": "TWSE MIS via taux-io/twse-mcp Cloudflare relay; per-symbol retry isolation",
   "endpoint": "https://twse-mcp.taux.io/mcp",
   "expected_codes": [
