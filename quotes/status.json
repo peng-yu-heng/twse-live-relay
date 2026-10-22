@@ -1,5 +1,5 @@
 {
-  "attempted_at": "2026-10-22T14:18:17+08:00",
+  "attempted_at": "2026-10-22T16:03:50+08:00",
   "source": "TWSE MIS via taux-io/twse-mcp Cloudflare relay; per-symbol retry isolation",
   "endpoint": "https://twse-mcp.taux.io/mcp",
   "expected_codes": [
@@ -36,6 +36,9 @@
   ],
   "missing_codes": [],
   "stale_date_codes": [],
-  "errors": [],
+  "errors": [
+    "[tse:8046] attempt 1/5: 上游逾時（8 秒沒有回應）for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_8046.tw&json=1&delay=0",
+    "[direct-MIS-backup] fetch failed"
+  ],
   "success": false
 }
