@@ -1,5 +1,5 @@
 {
-  "attempted_at": "2026-10-23T17:38:08+08:00",
+  "attempted_at": "2026-10-23T18:30:18+08:00",
   "source": "TWSE MIS via taux-io/twse-mcp Cloudflare relay; per-symbol retry isolation",
   "endpoint": "https://twse-mcp.taux.io/mcp",
   "expected_codes": [
@@ -45,6 +45,26 @@
     "8358",
     "6147"
   ],
-  "errors": [],
+  "errors": [
+    "[tse:3037] attempt 1/5: HTTP 520 for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_3037.tw&json=1&delay=0",
+    "[tse:1802] attempt 1/5: HTTP 520 for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_1802.tw&json=1&delay=0",
+    "[tse:1303] attempt 1/5: HTTP 520 for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_1303.tw&json=1&delay=0",
+    "[tse:3037] attempt 2/5: HTTP 520 for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_3037.tw&json=1&delay=0",
+    "[tse:1303] attempt 4/5: HTTP 520 for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_1303.tw&json=1&delay=0",
+    "[tse:3037] attempt 5/5: HTTP 520 for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_3037.tw&json=1&delay=0",
+    "[tse:8046] attempt 5/5: HTTP 520 for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_8046.tw&json=1&delay=0",
+    "[tse:3189] attempt 5/5: HTTP 520 for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_3189.tw&json=1&delay=0",
+    "[tse:1802] attempt 5/5: HTTP 520 for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_1802.tw&json=1&delay=0",
+    "[tse:1303] attempt 5/5: HTTP 520 for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_1303.tw&json=1&delay=0",
+    "[tse:2408] attempt 5/5: HTTP 520 for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_2408.tw&json=1&delay=0",
+    "[otc:8358] attempt 1/5: HTTP 520 for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=otc_8358.tw&json=1&delay=0",
+    "[otc:6147] attempt 1/5: HTTP 520 for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=otc_6147.tw&json=1&delay=0",
+    "[otc:8358] attempt 2/5: HTTP 520 for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=otc_8358.tw&json=1&delay=0",
+    "[otc:6147] attempt 2/5: HTTP 520 for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=otc_6147.tw&json=1&delay=0",
+    "[otc:8358] attempt 3/5: HTTP 520 for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=otc_8358.tw&json=1&delay=0",
+    "[otc:6147] attempt 3/5: HTTP 520 for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=otc_6147.tw&json=1&delay=0",
+    "[otc:8358] attempt 5/5: HTTP 520 for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=otc_8358.tw&json=1&delay=0",
+    "[otc:6147] attempt 5/5: HTTP 520 for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=otc_6147.tw&json=1&delay=0"
+  ],
   "success": false
 }
