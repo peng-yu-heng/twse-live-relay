@@ -12,8 +12,7 @@ const GROUPS = [
 
 let nextId = 1;
 
-function nowTaipei() {
-  const d = new Date();
+function nowTaipei(d = new Date()) {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23'
@@ -170,9 +169,10 @@ async function fetchCodes(codes, market, previousByCode, taipei, errors) {
   }).filter(Boolean);
 }
 
-// Independent backup from the exchange MIS, not from the Cloudflare MCP relay.
-// A missing last_trade from the relay must not silently become a buy/ask price.
-async function fetchDirectMisLastTrades(taipei, errors) {
+// Indepen// Prefer direct TWSE MIS for all quote fields. The MCP proxy may serve a cached
+// prior-session payload even when its request itself succeeds.
+// Do not infer freshness from request time: validate each symbol's exchange tlong.
+async function fetchDirectMisQuotes(taipei, previousByCode, errors) {
   try {
     const channels = GROUPS.flatMap(g => g.codes.map(code => `${g.market}_${code}.tw`));
     const url = new URL('https://mis.twse.com.tw/stock/api/getStockInfo.jsp');
@@ -181,58 +181,78 @@ async function fetchDirectMisLastTrades(taipei, errors) {
     url.searchParams.set('delay', '0');
     url.searchParams.set('_', String(Date.now()));
     const response = await fetch(url, {
-      headers: { 'accept': 'application/json', 'user-agent': 'Mozilla/5.0' },
-      signal: AbortSignal.timeout(9000),
+      headers: { accept: 'application/json', 'user-agent': 'Mozilla/5.0' },
+      signal: AbortSignal.timeout(12000),
     });
     if (!response.ok) throw new Error(`MIS HTTP ${response.status}`);
     const data = await response.json();
+    if (!Array.isArray(data.msgArray)) throw new Error('MIS response missing msgArray');
     const out = new Map();
-    for (const x of data.msgArray ?? []) {
-      if (!GROUPS.some(g => g.codes.includes(x.c))) continue;
+    const requestedAt = Date.parse(taipei.local);
+    for (const x of data.msgArray) {
+      const group = GROUPS.find(g => g.codes.includes(String(x.c)) && g.market === x.ex);
+      if (!group) continue;
+      const code = String(x.c);
       const date = String(x.d ?? '').replace(/^(\d{4})(\d{2})(\d{2})$/, '$1-$2-$3');
-      const last = numericOrNull(x.z);
-      const time = x.t ?? null;
-      if (date !== taipei.isoDate || last == null || !/^\d{2}:\d{2}:\d{2}$/.test(time ?? '')) continue;
-      const tradeEpoch = Date.parse(`${date}T${time}+08:00`);
-      const runEpoch = Date.parse(taipei.local);
-      const age = Math.floor((runEpoch - tradeEpoch) / 1000);
-      if (!Number.isFinite(age) || age < 0 || age > 300) continue;
-      out.set(x.c, { last, time, age });
+      const snapshotEpoch = Number(x.tlong);
+      // A valid response can still contain yesterday's quote. Never stamp it as today.
+      if (date !== taipei.isoDate) {
+        errors.push(`[direct-MIS:${code}] stale trading date ${date}`);
+        continue;
+      }
+      if (!Number.isFinite(snapshotEpoch) || snapshotEpoch < 1e12) {
+        errors.push(`[direct-MIS:${code}] missing exchange snapshot timestamp (tlong)`);
+        continue;
+      }
+      const snapshotLocal = nowTaipei(new Date(snapshotEpoch));
+      const snapshotAge = Math.floor((requestedAt - snapshotEpoch) / 1000);
+      if (snapshotLocal.isoDate !== date || snapshotAge < -30 || snapshotAge > 300) {
+        errors.push(`[direct-MIS:${code}] stale/invalid exchange timestamp; age=${snapshotAge}s`);
+        continue;
+      }
+      const firstLevel = value => String(value ?? '').split('_').map(numericOrNull).find(v => v != null) ?? null;
+      const q = {
+        code, name: x.n ?? null, date,
+        time: snapshotLocal.local.slice(11, 19),
+        last: x.z, _last_trade_time: x.t ?? null,
+        bid: firstLevel(x.b), ask: firstLevel(x.a),
+        open: x.o, high: x.h, low: x.l, prev_close: x.y,
+        volume: x.v, limit_up: x.u, limit_down: x.w,
+      };
+      const normalized = normalize(q, group.market, previousByCode, taipei.local);
+      if (normalized.analysis_mode === 'unusable') {
+        errors.push(`[direct-MIS:${code}] quote has no recent trade or valid bid/ask`);
+        continue;
+      }
+      normalized.quote_source = 'TWSE MIS direct (exchange tlong validated)';
+      out.set(code, normalized);
     }
+    if (!out.size) errors.push('[direct-MIS] no usable same-day exchange quotes');
     return out;
   } catch (e) {
-    // A blocked official endpoint is an explicitly recorded backup failure,
-    // not a reason to relabel stale quotes as current trades.
-    errors.push(`[direct-MIS-backup] ${e?.message ?? String(e)}`);
+    errors.push(`[direct-MIS] ${e?.message ?? String(e)}`);
     return new Map();
   }
 }
 
-async function main() {
+tion main() {
   await mkdir(new URL('../quotes/', import.meta.url), { recursive: true });
   const prev = await readPrevious();
   const previousByCode = new Map((prev.quotes ?? []).map(q => [q.code, q]));
   const taipei = nowTaipei();
-  const collected = [];
   const errors = [];
-
+  // Fetch direct exchange quotes first. Query the MCP relay only for symbols
+  // that direct MIS could not verify, so a stale proxy cannot mask a fresh feed.
+  const direct = await fetchDirectMisQuotes(taipei, previousByCode, errors);
+  const collected = [...direct.values()];
   for (const g of GROUPS) {
-    const rows = await fetchCodes(g.codes, g.market, previousByCode, taipei, errors);
-    collected.push(...rows);
-  }
-
-  // Only upgrade missing/stale last-trade values when MIS has today's
-  // independently time-validated trade. Bid/ask timestamps are unchanged.
-  const directTrades = await fetchDirectMisLastTrades(taipei, errors);
-  for (const q of collected) {
-    const direct = directTrades.get(q.code);
-    if (!direct || (q.analysis_mode === 'last_trade' && (q.last_trade_age_seconds ?? 1e9) <= direct.age)) continue;
-    q.last_trade = direct.last;
-    q.last_trade_time = direct.time;
-    q.last_trade_age_seconds = direct.age;
-    q.carried_forward_last_trade = false;
-    q.analysis_mode = 'last_trade';
-    q.last_trade_source = 'TWSE MIS direct independent fallback';
+    const unresolved = g.codes.filter(code => !direct.has(code));
+    if (!unresolved.length) continue;
+    const rows = await fetchCodes(unresolved, g.market, previousByCode, taipei, errors);
+    for (const row of rows) {
+      row.quote_source = 'taux-io/twse-mcp relay';
+      collected.push(row);
+    }
   }
 
   const byCode = new Map(collected.map(q => [q.code, q]));
@@ -245,7 +265,7 @@ async function main() {
 
   const status = {
     attempted_at: taipei.local,
-    source: 'TWSE MIS via taux-io/twse-mcp Cloudflare relay; per-symbol retry isolation',
+    source: 'TWSE MIS direct first; taux-io/twse-mcp per-symbol fallback',
     endpoint: ENDPOINT,
     expected_codes: expected,
     received_codes: collected.map(q => q.code),
@@ -267,7 +287,7 @@ async function main() {
     const latest = {
       fetched_at: taipei.local,
       trading_date: taipei.isoDate,
-      source: 'TWSE MIS (mis.twse.com.tw) via taux-io/twse-mcp',
+      source: 'TWSE MIS direct and/or verified taux-io/twse-mcp relay',
       freshness_rule: 'Use last_trade only when last_trade_age_seconds <= 300. If last_trade is unavailable but bid/ask snapshot_age_seconds <= 300, use analysis_mode=bid_ask_only and never label bid/ask as a trade price.',
       quotes: expected.map(c => byCode.get(c)).filter(Boolean),
       errors,
