@@ -1,4 +1,4 @@
-import { writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
 
 const STOCKS = [
   {code:'3037', symbol:'3037.TW', name:'欣興', market:'tse'},
@@ -92,9 +92,26 @@ async function fetchYahoo(s){
 
 await mkdir('analysis',{recursive:true});
 const today=taipeiDate();
+// TWSE/TPEx announced a full typhoon closure for 2026-10-23.
+// Yahoo's free chart endpoint nevertheless supplied rows labelled that date.
+// Do not calculate indicators from bars on a verified exchange closure.
+const VERIFIED_EMERGENCY_CLOSURES = new Set(['2026-10-23']);
+let lastVerifiedQuoteDate = null;
+try {
+  const verified = JSON.parse(await readFile('quotes/latest.json','utf8'));
+  if (/^\d{4}-\d{2}-\d{2}$/.test(verified.trading_date ?? '') &&
+      verified.quotes?.length === STOCKS.length &&
+      verified.quotes.every(q => q.date === verified.trading_date && q.analysis_mode !== 'unusable')) {
+    lastVerifiedQuoteDate = verified.trading_date;
+  }
+} catch (e) {
+  console.error('Cannot verify exchange quote date:', e?.message ?? String(e));
+}
+if (!lastVerifiedQuoteDate) throw new Error('No validated exchange quote date; refusing unverified Yahoo bars');
 const out={
   generated_at:new Date().toISOString(),
-  indicator_basis:'Completed daily bars only. Unadjusted OHLC. RSI5/10/14 use Wilder smoothing. KD(9,3,3) uses 9-day RSV with K and D initialized at 50 and 1/3 smoothing. ATR14 uses Wilder true range.',
+  indicator_basis:'Completed verified-date daily bars only; excludes announced exchange closures. Unadjusted OHLC. RSI5/10/14 use Wilder smoothing. KD(9,3,3) uses 9-day RSV with K and D initialized at 50 and 1/3 smoothing. ATR14 uses Wilder true range.',
+  verification:{last_verified_quote_date:lastVerifiedQuoteDate,excluded_exchange_closures:[...VERIFIED_EMERGENCY_CLOSURES],unverified_future_bars_rejected:true},
   stocks:[],
   errors:[]
 };
@@ -102,7 +119,8 @@ const out={
 for(const s of STOCKS){
   try{
     let rows=await fetchYahoo(s);
-    rows=rows.filter(r=>r.date<today);
+    rows=rows.filter(r=>r.date<today && r.date<=lastVerifiedQuoteDate && !VERIFIED_EMERGENCY_CLOSURES.has(r.date));
+    if(rows.length<70) throw new Error('Insufficient verified completed daily bars after calendar/date filtering');
     const closes=rows.map(r=>r.close);
     const vols=rows.map(r=>r.volume).filter(v=>Number.isFinite(v));
     const last=rows.at(-1);
@@ -128,7 +146,7 @@ for(const s of STOCKS){
       low20: rows.length>=20?Math.min(...rows.slice(-20).map(r=>r.low)):null,
       high60: rows.length>=60?Math.max(...rows.slice(-60).map(r=>r.high)):null,
       low60: rows.length>=60?Math.min(...rows.slice(-60).map(r=>r.low)):null,
-      source:'Yahoo Finance chart API (free secondary history source); previous close should be cross-checked against TWSE MIS.'
+      source:'Yahoo Finance chart API (free secondary history source), capped at last verified MIS trading date; bars on known closures excluded. Historical OHLC still requires independent official verification.'
     });
   }catch(e){ out.errors.push({code:s.code,error:String(e.message||e)}); }
 }
