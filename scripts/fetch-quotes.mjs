@@ -210,7 +210,7 @@ async function fetchDirectMisQuotes(taipei, previousByCode, errors) {
         errors.push(`[direct-MIS:${code}] stale/invalid exchange timestamp; age=${snapshotAge}s`);
         continue;
       }
-      const firstLevel = value => String(value ?? '').split('_').map(numericOrNull).find(v => v != null) ?? null;
+      const firstLevel = value => numericOrNull(String(value ?? '').split('_')[0]);
       const q = {
         code, name: x.n ?? null, date,
         time: snapshotLocal.local.slice(11, 19),
