@@ -235,7 +235,7 @@ async function fetchDirectMisQuotes(taipei, previousByCode, errors) {
   }
 }
 
-tion main() {
+async function main() {
   await mkdir(new URL('../quotes/', import.meta.url), { recursive: true });
   const prev = await readPrevious();
   const previousByCode = new Map((prev.quotes ?? []).map(q => [q.code, q]));
