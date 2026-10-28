@@ -107,6 +107,21 @@ try {
 } catch (e) {
   console.error('Cannot verify exchange quote date:', e?.message ?? String(e));
 }
+// A full official close snapshot is independent of the five-minute intraday feed.
+// Never treat a 13:00 bid/ask quote or Yahoo's partial intraday daily bar as final.
+let officialCloseByCode=null;
+try {
+  const close=JSON.parse(await readFile('quotes/close-latest.json','utf8'));
+  if(close.complete===true && close.price_type==='official_daily_close' && close.trading_date===today &&
+     Array.isArray(close.quotes) && close.quotes.length===STOCKS.length &&
+     STOCKS.every(s=>close.quotes.some(q=>q.code===s.code&&q.date===today))){
+    officialCloseByCode=new Map(close.quotes.map(q=>[q.code,q]));
+    if(!lastVerifiedQuoteDate || today>lastVerifiedQuoteDate)lastVerifiedQuoteDate=today;
+  }
+} catch(e) {
+  console.error('Same-day official close unavailable; using only older completed bars:',e?.message??String(e));
+}
+
 if (!lastVerifiedQuoteDate) throw new Error('No validated exchange quote date; refusing unverified Yahoo bars');
 const out={
   generated_at:new Date().toISOString(),
@@ -120,6 +135,13 @@ for(const s of STOCKS){
   try{
     let rows=await fetchYahoo(s);
     rows=rows.filter(r=>r.date<today && r.date<=lastVerifiedQuoteDate && !VERIFIED_EMERGENCY_CLOSURES.has(r.date));
+    const official=officialCloseByCode?.get(s.code);
+    if(official && [official.open,official.high,official.low,official.close].every(n=>Number.isFinite(n)&&n>0) &&
+       official.low<=official.open && official.open<=official.high &&
+       official.low<=official.close && official.close<=official.high) {
+      rows.push({date:today,open:official.open,high:official.high,low:official.low,
+                 close:official.close,volume:official.volume_shares??null});
+    }
     if(rows.length<70) throw new Error('Insufficient verified completed daily bars after calendar/date filtering');
     const closes=rows.map(r=>r.close);
     const vols=rows.map(r=>r.volume).filter(v=>Number.isFinite(v));
@@ -146,7 +168,7 @@ for(const s of STOCKS){
       low20: rows.length>=20?Math.min(...rows.slice(-20).map(r=>r.low)):null,
       high60: rows.length>=60?Math.max(...rows.slice(-60).map(r=>r.high)):null,
       low60: rows.length>=60?Math.min(...rows.slice(-60).map(r=>r.low)):null,
-      source:'Yahoo Finance chart API (free secondary history source), capped at last verified MIS trading date; bars on known closures excluded. Historical OHLC still requires independent official verification.'
+      source:official&&rows.at(-1)?.date===today?'TWSE/TPEx official dated OHLC for today; Yahoo Finance secondary pre-today history (not independently official verified)':'Yahoo Finance secondary history, last completed earlier session; todays official close unavailable or OHLC incomplete.'
     });
   }catch(e){ out.errors.push({code:s.code,error:String(e.message||e)}); }
 }
