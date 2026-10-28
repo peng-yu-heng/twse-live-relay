@@ -1,0 +1,93 @@
+{
+  "trading_date": "2026-10-28",
+  "collected_at": "2026-10-28T05:50:31.313Z",
+  "price_type": "official_daily_close",
+  "complete": false,
+  "verified_codes": [
+    "3037",
+    "8046",
+    "3189",
+    "1802",
+    "1303",
+    "2408"
+  ],
+  "quotes": [
+    {
+      "code": "3037",
+      "name": "欣興",
+      "market": "tse",
+      "date": "2026-10-28",
+      "close": 1100,
+      "open": 1145,
+      "high": 1145,
+      "low": 1040,
+      "volume_shares": 24024000,
+      "source": "TWSE RWD dated CSV STOCK_DAY_ALL"
+    },
+    {
+      "code": "8046",
+      "name": "南電",
+      "market": "tse",
+      "date": "2026-10-28",
+      "close": 1300,
+      "open": 1320,
+      "high": 1330,
+      "low": 1235,
+      "volume_shares": 10184000,
+      "source": "TWSE RWD dated CSV STOCK_DAY_ALL"
+    },
+    {
+      "code": "3189",
+      "name": "景碩",
+      "market": "tse",
+      "date": "2026-10-28",
+      "close": 1035,
+      "open": 989,
+      "high": 1035,
+      "low": 940,
+      "volume_shares": 17921000,
+      "source": "TWSE RWD dated CSV STOCK_DAY_ALL"
+    },
+    {
+      "code": "1802",
+      "name": "台玻",
+      "market": "tse",
+      "date": "2026-10-28",
+      "close": 65.6,
+      "open": 66.1,
+      "high": 68.4,
+      "low": 63.9,
+      "volume_shares": 124759000,
+      "source": "TWSE RWD dated CSV STOCK_DAY_ALL"
+    },
+    {
+      "code": "1303",
+      "name": "南亞",
+      "market": "tse",
+      "date": "2026-10-28",
+      "close": 319,
+      "open": 311,
+      "high": 319.5,
+      "low": 303,
+      "volume_shares": 88358000,
+      "source": "TWSE RWD dated CSV STOCK_DAY_ALL"
+    },
+    {
+      "code": "2408",
+      "name": "南亞科",
+      "market": "tse",
+      "date": "2026-10-28",
+      "close": 477,
+      "open": 460.5,
+      "high": 478.5,
+      "low": 448,
+      "volume_shares": 44982000,
+      "source": "TWSE RWD dated CSV STOCK_DAY_ALL"
+    }
+  ],
+  "errors": [
+    "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL: 3037: wrong trade date 2026-10-27",
+    "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes: 8358: wrong trade date 2026-10-27",
+    "https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotes/stk_quote_result.php?l=zh-tw&d=115%2F10%2F28&o=json: TPEx legacy report date unavailable null"
+  ]
+}
