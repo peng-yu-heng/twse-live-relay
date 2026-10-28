@@ -1,5 +1,5 @@
 {
-  "attempted_at": "2026-10-28T05:50:31.313Z",
+  "attempted_at": "2026-10-28T05:51:41.108Z",
   "trading_date": "2026-10-28",
   "expected_codes": [
     "3037",
@@ -26,7 +26,7 @@
   "success": false,
   "errors": [
     "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL: 3037: wrong trade date 2026-10-27",
-    "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes: 8358: wrong trade date 2026-10-27",
-    "https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotes/stk_quote_result.php?l=zh-tw&d=115%2F10%2F28&o=json: TPEx legacy report date unavailable null"
+    "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes: terminated",
+    "https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotes/stk_quote_result.php?l=zh-tw&d=115%2F10%2F28&o=json: TPEx legacy report date unavailable null; keys=date,tables,flagField,stat; report={\"date\":\"20261027\",\"head\":\"上櫃股票行情\",\"first\":[\"00411A\",\"主動統一前沿科技\",\"9.91\",\"-0.02 \"]}"
   ]
 }
