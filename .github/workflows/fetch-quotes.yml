@@ -8,6 +8,11 @@ on:
     paths-ignore:
       - 'quotes/**'
       - 'analysis/**'
+      - 'scripts/fetch-closes.mjs'
+      - '.github/workflows/fetch-closes.yml'
+      - 'ops/close-refresh-trigger.md'
+      - 'scripts/build-technicals.mjs'
+      - '.github/workflows/build-technicals.yml'
   schedule:
     # GitHub schedules are best-effort and may be delayed or dropped.
     # Avoid minute 00, which GitHub notes is heavily loaded.
