@@ -3,7 +3,7 @@ const ROOT=new URL('../quotes/',import.meta.url);
 const STOCKS=[['3037','欣興','tse'],['8046','南電','tse'],['3189','景碩','tse'],['1802','台玻','tse'],['1303','南亞','tse'],['2408','南亞科','tse'],['8358','金居','otc'],['6147','頎邦','otc']].map(([code,name,market])=>({code,name,market}));
 const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 function numeric(v){if(v==null||/^\s*(?:-|--|N\/A|－)?\s*$/.test(String(v)))return null;const n=Number(String(v).replaceAll(',','').trim());return Number.isFinite(n)?n:null;}
-function parseDate(v){const s=String(v??'').trim();if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;if(/^\d{4}\/\d{2}\/\d{2}$/.test(s))return s.replaceAll('/','-');const m=s.match(/^(\d{2,3})[/-]?(\d{2})[/-]?(\d{2})$/);return m?String(Number(m[1])+1911)+'-'+m[2]+'-'+m[3]:null;}
+function parseDate(v){const s=String(v??'').trim();if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;if(/^\d{8}$/.test(s))return s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8);if(/^\d{4}\/\d{2}\/\d{2}$/.test(s))return s.replaceAll('/','-');const m=s.match(/^(\d{2,3})[/-]?(\d{2})[/-]?(\d{2})$/);return m?String(Number(m[1])+1911)+'-'+m[2]+'-'+m[3]:null;}
 function parseCsv(body){
   const lines=[];let row=[],value='',quoted=false;
   for(let i=0;i<body.length;i++){const c=body[i];
