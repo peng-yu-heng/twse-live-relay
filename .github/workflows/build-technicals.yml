@@ -8,6 +8,8 @@ on:
     # Taiwan 08:43 / 08:53 / 14:15 on weekdays.
     - cron: '43,53 0 * * 1-5'
     - cron: '15 6 * * 1-5'
+    # Retry after official 14:07-17:07 close feeds; allow publication delays.
+    - cron: '37 6-8 * * 1-5'
   push:
     branches: [main]
     paths:
