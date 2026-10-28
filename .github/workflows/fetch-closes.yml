@@ -1,0 +1,68 @@
+name: Fetch official Taiwan closing prices
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/fetch-closes.mjs'
+      - '.github/workflows/fetch-closes.yml'
+      - 'ops/close-refresh-trigger.md'
+  schedule:
+    # Taiwan 14:07, 14:27, 14:47, 15:07, 16:07, 17:07 (weekdays).
+    # Exchange publications and GitHub cron starts may be delayed.
+    - cron: '7,27,47 6 * * 1-5'
+    - cron: '7 7-9 * * 1-5'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: twse-official-close
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Fetch official TWSE and TPEx daily closing quotes
+        id: close
+        continue-on-error: true
+        run: node scripts/fetch-closes.mjs
+      - name: Publish close status and validated quotes
+        if: always()
+        run: |
+          set -euo pipefail
+          git config user.name "twse-live-relay-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          snapshot_dir="$(mktemp -d)"
+          shopt -s nullglob
+          for f in quotes/close-*.json; do cp "$f" "$snapshot_dir/"; done
+          pushed=false
+          for i in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+            for f in "$snapshot_dir"/*.json; do cp "$f" quotes/; done
+            git add quotes/close-*.json
+            if git diff --cached --quiet; then
+              pushed=true
+              break
+            fi
+            git commit -m "quotes: publish official closing snapshot and validation status"
+            if git push origin HEAD:main; then
+              pushed=true
+              break
+            fi
+            sleep $((i*5))
+          done
+          test "$pushed" = true
+      - name: Report unavailable or incomplete official close
+        if: steps.close.outcome != 'success'
+        run: |
+          echo "Official eight-stock daily close was not fully verified. See quotes/close-status.json."
+          exit 1
