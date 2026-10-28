@@ -1,15 +1,17 @@
 {
   "trading_date": "2026-10-28",
-  "collected_at": "2026-10-28T05:52:49.263Z",
+  "collected_at": "2026-10-28T12:40:09.712Z",
   "price_type": "official_daily_close",
-  "complete": false,
+  "complete": true,
   "verified_codes": [
     "3037",
     "8046",
     "3189",
     "1802",
     "1303",
-    "2408"
+    "2408",
+    "8358",
+    "6147"
   ],
   "quotes": [
     {
@@ -21,7 +23,7 @@
       "open": 1145,
       "high": 1145,
       "low": 1040,
-      "volume_shares": 24024000,
+      "volume_shares": 24498433,
       "source": "TWSE RWD dated CSV STOCK_DAY_ALL"
     },
     {
@@ -33,7 +35,7 @@
       "open": 1320,
       "high": 1330,
       "low": 1235,
-      "volume_shares": 10184000,
+      "volume_shares": 10351068,
       "source": "TWSE RWD dated CSV STOCK_DAY_ALL"
     },
     {
@@ -45,7 +47,7 @@
       "open": 989,
       "high": 1035,
       "low": 940,
-      "volume_shares": 17921000,
+      "volume_shares": 18392492,
       "source": "TWSE RWD dated CSV STOCK_DAY_ALL"
     },
     {
@@ -57,7 +59,7 @@
       "open": 66.1,
       "high": 68.4,
       "low": 63.9,
-      "volume_shares": 124759000,
+      "volume_shares": 125374262,
       "source": "TWSE RWD dated CSV STOCK_DAY_ALL"
     },
     {
@@ -69,7 +71,7 @@
       "open": 311,
       "high": 319.5,
       "low": 303,
-      "volume_shares": 88358000,
+      "volume_shares": 89844955,
       "source": "TWSE RWD dated CSV STOCK_DAY_ALL"
     },
     {
@@ -81,13 +83,35 @@
       "open": 460.5,
       "high": 478.5,
       "low": 448,
-      "volume_shares": 44982000,
+      "volume_shares": 46448462,
       "source": "TWSE RWD dated CSV STOCK_DAY_ALL"
+    },
+    {
+      "code": "8358",
+      "name": "金居",
+      "market": "otc",
+      "date": "2026-10-28",
+      "close": 460,
+      "open": 431,
+      "high": 460,
+      "low": 430,
+      "volume_shares": 2212173,
+      "source": "TPEx OpenAPI daily_close_quotes"
+    },
+    {
+      "code": "6147",
+      "name": "頎邦",
+      "market": "otc",
+      "date": "2026-10-28",
+      "close": 222.5,
+      "open": 214,
+      "high": 223,
+      "low": 213.5,
+      "volume_shares": 27608086,
+      "source": "TPEx OpenAPI daily_close_quotes"
     }
   ],
   "errors": [
-    "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL: 3037: wrong trade date 2026-10-27",
-    "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes: 8358: wrong trade date 2026-10-27",
-    "https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotes/stk_quote_result.php?l=zh-tw&d=115%2F10%2F28&o=json: TPEx legacy report date unavailable 2026-10-27; keys=date,tables,flagField,stat; report={\"date\":\"20261027\",\"head\":\"上櫃股票行情\",\"first\":[\"00411A\",\"主動統一前沿科技\",\"9.91\",\"-0.02 \"]}"
+    "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL: 3037: wrong trade date 2026-10-27"
   ]
 }
