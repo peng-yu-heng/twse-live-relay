@@ -1,0 +1,117 @@
+{
+  "trading_date": "2026-10-29",
+  "collected_at": "2026-10-29T12:49:26.041Z",
+  "price_type": "official_daily_close",
+  "complete": true,
+  "verified_codes": [
+    "3037",
+    "8046",
+    "3189",
+    "1802",
+    "1303",
+    "2408",
+    "8358",
+    "6147"
+  ],
+  "quotes": [
+    {
+      "code": "3037",
+      "name": "欣興",
+      "market": "tse",
+      "date": "2026-10-29",
+      "close": 1040,
+      "open": 1110,
+      "high": 1110,
+      "low": 1040,
+      "volume_shares": 15449072,
+      "source": "TWSE RWD dated CSV STOCK_DAY_ALL"
+    },
+    {
+      "code": "8046",
+      "name": "南電",
+      "market": "tse",
+      "date": "2026-10-29",
+      "close": 1250,
+      "open": 1285,
+      "high": 1320,
+      "low": 1250,
+      "volume_shares": 5838016,
+      "source": "TWSE RWD dated CSV STOCK_DAY_ALL"
+    },
+    {
+      "code": "3189",
+      "name": "景碩",
+      "market": "tse",
+      "date": "2026-10-29",
+      "close": 959,
+      "open": 1000,
+      "high": 1020,
+      "low": 947,
+      "volume_shares": 18205518,
+      "source": "TWSE RWD dated CSV STOCK_DAY_ALL"
+    },
+    {
+      "code": "1802",
+      "name": "台玻",
+      "market": "tse",
+      "date": "2026-10-29",
+      "close": 62,
+      "open": 65.5,
+      "high": 65.6,
+      "low": 61.7,
+      "volume_shares": 70354505,
+      "source": "TWSE RWD dated CSV STOCK_DAY_ALL"
+    },
+    {
+      "code": "1303",
+      "name": "南亞",
+      "market": "tse",
+      "date": "2026-10-29",
+      "close": 312,
+      "open": 318,
+      "high": 325,
+      "low": 308.5,
+      "volume_shares": 71119605,
+      "source": "TWSE RWD dated CSV STOCK_DAY_ALL"
+    },
+    {
+      "code": "2408",
+      "name": "南亞科",
+      "market": "tse",
+      "date": "2026-10-29",
+      "close": 477,
+      "open": 482,
+      "high": 497.5,
+      "low": 468,
+      "volume_shares": 61920419,
+      "source": "TWSE RWD dated CSV STOCK_DAY_ALL"
+    },
+    {
+      "code": "8358",
+      "name": "金居",
+      "market": "otc",
+      "date": "2026-10-29",
+      "close": 438.5,
+      "open": 453.5,
+      "high": 456.5,
+      "low": 432,
+      "volume_shares": 1265751,
+      "source": "TPEx OpenAPI daily_close_quotes"
+    },
+    {
+      "code": "6147",
+      "name": "頎邦",
+      "market": "otc",
+      "date": "2026-10-29",
+      "close": 203,
+      "open": 220,
+      "high": 222,
+      "low": 200.5,
+      "volume_shares": 37131292,
+      "source": "TPEx OpenAPI daily_close_quotes"
+    }
+  ],
+  "errors": [
+    "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL: 3037: wrong trade date 2026-10-28"
+  ]
+}
