@@ -1,5 +1,5 @@
 {
-  "attempted_at": "2026-10-29T15:23:39+08:00",
+  "attempted_at": "2026-10-29T17:03:39+08:00",
   "source": "TWSE MIS direct first; taux-io/twse-mcp per-symbol fallback",
   "endpoint": "https://twse-mcp.taux.io/mcp",
   "expected_codes": [
@@ -37,14 +37,14 @@
   "missing_codes": [],
   "stale_date_codes": [],
   "errors": [
-    "[direct-MIS:3037] stale/invalid exchange timestamp; age=3219s",
-    "[direct-MIS:8046] stale/invalid exchange timestamp; age=3219s",
-    "[direct-MIS:3189] stale/invalid exchange timestamp; age=3219s",
-    "[direct-MIS:1802] stale/invalid exchange timestamp; age=3219s",
-    "[direct-MIS:1303] stale/invalid exchange timestamp; age=3219s",
-    "[direct-MIS:2408] stale/invalid exchange timestamp; age=3219s",
-    "[direct-MIS:8358] stale/invalid exchange timestamp; age=3219s",
-    "[direct-MIS:6147] stale/invalid exchange timestamp; age=3219s",
+    "[direct-MIS:3037] stale/invalid exchange timestamp; age=9219s",
+    "[direct-MIS:8046] stale/invalid exchange timestamp; age=9219s",
+    "[direct-MIS:3189] stale/invalid exchange timestamp; age=9219s",
+    "[direct-MIS:1802] stale/invalid exchange timestamp; age=9219s",
+    "[direct-MIS:1303] stale/invalid exchange timestamp; age=9219s",
+    "[direct-MIS:2408] stale/invalid exchange timestamp; age=9219s",
+    "[direct-MIS:8358] stale/invalid exchange timestamp; age=9219s",
+    "[direct-MIS:6147] stale/invalid exchange timestamp; age=9219s",
     "[direct-MIS] no usable same-day exchange quotes"
   ],
   "success": false
