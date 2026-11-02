@@ -1,5 +1,5 @@
 {
-  "attempted_at": "2026-11-02T09:48:31+08:00",
+  "attempted_at": "2026-11-02T12:57:08+08:00",
   "source": "TWSE MIS direct first; taux-io/twse-mcp per-symbol fallback",
   "endpoint": "https://twse-mcp.taux.io/mcp",
   "expected_codes": [
@@ -22,7 +22,9 @@
     "8358",
     "6147"
   ],
-  "fresh_trade_codes_le_5m": [],
+  "fresh_trade_codes_le_5m": [
+    "8358"
+  ],
   "fresh_bid_ask_only_codes_le_5m": [
     "3037",
     "8046",
@@ -30,7 +32,6 @@
     "1802",
     "1303",
     "2408",
-    "8358",
     "6147"
   ],
   "unusable_codes": [],
