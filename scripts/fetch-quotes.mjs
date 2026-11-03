@@ -102,7 +102,7 @@ function normalize(q, market, previousByCode, runLocal) {
   const bid = numericOrNull(q.bid);
   const ask = numericOrNull(q.ask);
   const tradeUsable = q.date === runLocal.slice(0, 10) && tradeAgeSeconds != null && tradeAgeSeconds <= 300;
-  const bidAskUsable = q.date === runLocal.slice(0, 10) && snapshotAgeSeconds != null && snapshotAgeSeconds <= 300 && bid != null && ask != null;
+  const bidAskUsable = q.date === runLocal.slice(0, 10) && snapshotAgeSeconds != null && snapshotAgeSeconds <= 300 && ((bid != null && bid > 0) || (ask != null && ask > 0));
   const analysisMode = tradeUsable ? 'last_trade' : bidAskUsable ? 'bid_ask_only' : 'unusable';
 
   return {
@@ -151,7 +151,7 @@ async function fetchCodes(codes, market, previousByCode, taipei, errors) {
           market, previousByCode, taipei.local
         );
         // A current-date snapshot is enough to stop network retries. Freshness is still enforced later.
-        if (normalized.date === taipei.isoDate) pending.delete(code);
+        if (normalized.date === taipei.isoDate && normalized.analysis_mode !== 'unusable') pending.delete(code);
         for (const caveat of data.caveats ?? []) errors.push(`[${market}:${code}] caveat: ${caveat}`);
       } catch (e) {
         errors.push(`[${market}:${code}] attempt ${attempt}/${maxAttempts}: ${e?.message ?? String(e)}`);
