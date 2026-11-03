@@ -1,5 +1,5 @@
 {
-  "attempted_at": "2026-11-03T09:32:56+08:00",
+  "attempted_at": "2026-11-03T13:05:05+08:00",
   "source": "TWSE MIS direct first; taux-io/twse-mcp per-symbol fallback",
   "endpoint": "https://twse-mcp.taux.io/mcp",
   "expected_codes": [
@@ -14,29 +14,41 @@
   ],
   "received_codes": [
     "3037",
-    "8046",
     "3189",
     "1802",
-    "1303",
     "2408",
     "8358",
     "6147"
   ],
   "fresh_trade_codes_le_5m": [
-    "8046"
-  ],
-  "fresh_bid_ask_only_codes_le_5m": [
-    "3037",
-    "3189",
-    "1802",
-    "1303",
     "2408",
     "8358",
     "6147"
   ],
+  "fresh_bid_ask_only_codes_le_5m": [
+    "3037",
+    "3189",
+    "1802"
+  ],
   "unusable_codes": [],
-  "missing_codes": [],
+  "missing_codes": [
+    "8046",
+    "1303"
+  ],
   "stale_date_codes": [],
-  "errors": [],
-  "success": true
+  "errors": [
+    "[direct-MIS:8046] quote has no recent trade or valid bid/ask",
+    "[direct-MIS:1303] quote has no recent trade or valid bid/ask",
+    "[tse:8046] attempt 1/5: 上游逾時（8 秒沒有回應）for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_8046.tw&json=1&delay=0",
+    "[tse:1303] attempt 1/5: 上游逾時（8 秒沒有回應）for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_1303.tw&json=1&delay=0",
+    "[tse:8046] attempt 2/5: 上游逾時（8 秒沒有回應）for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_8046.tw&json=1&delay=0",
+    "[tse:1303] attempt 2/5: 上游逾時（8 秒沒有回應）for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_1303.tw&json=1&delay=0",
+    "[tse:8046] attempt 3/5: 上游逾時（8 秒沒有回應）for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_8046.tw&json=1&delay=0",
+    "[tse:1303] attempt 3/5: 上游逾時（8 秒沒有回應）for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_1303.tw&json=1&delay=0",
+    "[tse:8046] attempt 4/5: 上游逾時（8 秒沒有回應）for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_8046.tw&json=1&delay=0",
+    "[tse:1303] attempt 4/5: 上游逾時（8 秒沒有回應）for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_1303.tw&json=1&delay=0",
+    "[tse:8046] attempt 5/5: 上游逾時（8 秒沒有回應）for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_8046.tw&json=1&delay=0",
+    "[tse:1303] attempt 5/5: 上游逾時（8 秒沒有回應）for https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_1303.tw&json=1&delay=0"
+  ],
+  "success": false
 }
