@@ -51,7 +51,7 @@ async function rpc(method, params = {}) {
     },
   };
   const res = await fetch(ENDPOINT, {
-    method: 'POST', headers, body: JSON.stringify(body), signal: AbortSignal.timeout(15000),
+    method: 'POST', headers, body: JSON.stringify(body), signal: AbortSignal.timeout(6500),
   });
   const text = await res.text();
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0,200)}`);
@@ -133,11 +133,11 @@ async function fetchCodes(codes, market, previousByCode, taipei, errors) {
   const latestSnapshotByCode = new Map();
   const lastObservedByCode = new Map();
   const pending = new Set(codes);
-  const maxAttempts = 5;
+  const maxAttempts = 2;
 
   for (let attempt = 1; attempt <= maxAttempts && pending.size; attempt++) {
     // Query each symbol independently. A 520 for one symbol must not take the whole market batch down.
-    for (const code of [...pending]) {
+    await Promise.all([...pending].map(async code => {
       try {
         const result = await rpc('tools/call', { name: 'quote.realtime', arguments: { codes: [code], market } });
         if (result?.isError) throw new Error(result.content?.map(x => x.text).join(' ') || 'quote.realtime isError');
@@ -156,9 +156,8 @@ async function fetchCodes(codes, market, previousByCode, taipei, errors) {
       } catch (e) {
         errors.push(`[${market}:${code}] attempt ${attempt}/${maxAttempts}: ${e?.message ?? String(e)}`);
       }
-      await sleep(250);
-    }
-    if (pending.size && attempt < maxAttempts) await sleep(Math.min(15000, 1500 * 2 ** (attempt - 1)));
+    }));
+    if (pending.size && attempt < maxAttempts) await sleep(800);
   }
 
   return codes.map(code => {
@@ -281,15 +280,18 @@ async function main() {
 
   await writeFile(STATUS, JSON.stringify(status, null, 2) + '\n');
 
-  // Never overwrite the last verified snapshot with an invalid/out-of-session poll.
-  // The separate status.json records the failure for downstream alerting.
-  if (status.success) {
+  // Publish only verified same-day usable rows, even when some symbols fail.
+  // Never carry forward stale rows or label an incomplete snapshot as complete.
+  const publishable = collected.filter(q => q.date === taipei.isoDate && q.analysis_mode !== 'unusable');
+  if (publishable.length) {
     const latest = {
       fetched_at: taipei.local,
       trading_date: taipei.isoDate,
       source: 'TWSE MIS direct and/or verified taux-io/twse-mcp relay',
       freshness_rule: 'Use last_trade only when last_trade_age_seconds <= 300. If last_trade is unavailable but bid/ask snapshot_age_seconds <= 300, use analysis_mode=bid_ask_only and never label bid/ask as a trade price.',
-      quotes: expected.map(c => byCode.get(c)).filter(Boolean),
+      complete: status.success,
+      missing_codes: missing,
+      quotes: expected.map(c => byCode.get(c)).filter(q => q && q.date === taipei.isoDate && q.analysis_mode !== 'unusable'),
       errors,
     };
     await writeFile(LATEST, JSON.stringify(latest, null, 2) + '\n');
