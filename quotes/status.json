@@ -1,5 +1,5 @@
 {
-  "attempted_at": "2026-11-03T13:15:05+08:00",
+  "attempted_at": "2026-11-03T13:33:30+08:00",
   "source": "TWSE MIS direct first; taux-io/twse-mcp per-symbol fallback",
   "endpoint": "https://twse-mcp.taux.io/mcp",
   "expected_codes": [
@@ -14,35 +14,28 @@
   ],
   "received_codes": [
     "3037",
+    "8046",
     "3189",
     "1802",
-    "2408",
-    "8046",
     "1303",
+    "2408",
     "8358",
     "6147"
   ],
   "fresh_trade_codes_le_5m": [
-    "6147"
-  ],
-  "fresh_bid_ask_only_codes_le_5m": [
     "3037",
+    "8046",
     "3189",
     "1802",
-    "2408"
-  ],
-  "unusable_codes": [
-    "8046",
     "1303",
-    "8358"
+    "2408",
+    "8358",
+    "6147"
   ],
+  "fresh_bid_ask_only_codes_le_5m": [],
+  "unusable_codes": [],
   "missing_codes": [],
   "stale_date_codes": [],
-  "errors": [
-    "[direct-MIS:8046] quote has no recent trade or valid bid/ask",
-    "[direct-MIS:1303] quote has no recent trade or valid bid/ask",
-    "[direct-MIS:8358] quote has no recent trade or valid bid/ask",
-    "[direct-MIS:6147] quote has no recent trade or valid bid/ask"
-  ],
-  "success": false
+  "errors": [],
+  "success": true
 }
