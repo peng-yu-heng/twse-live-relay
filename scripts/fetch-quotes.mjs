@@ -1,318 +1,238 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
+import { pathToFileURL } from 'node:url';
 
 const ENDPOINT = 'https://twse-mcp.taux.io/mcp';
 const PROTOCOL = '2026-07-28';
-const LATEST = new URL('../quotes/latest.json', import.meta.url);
-const STATUS = new URL('../quotes/status.json', import.meta.url);
-
-const GROUPS = [
+const ROOT = new URL('../quotes/', import.meta.url);
+export const GROUPS = [
   { market: 'tse', codes: ['3037','8046','3189','1802','1303','2408'] },
   { market: 'otc', codes: ['8358','6147'] },
 ];
+const EXPECTED = GROUPS.flatMap(g => g.codes);
+const SOURCE = 'TWSE MIS direct first; taux-io/twse-mcp per-symbol fallback';
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-let nextId = 1;
-
-function nowTaipei(d = new Date()) {
+export function nowTaipei(d = new Date()) {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23'
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
   }).formatToParts(d);
   const o = Object.fromEntries(parts.map(x => [x.type, x.value]));
-  return {
-    isoDate: `${o.year}-${o.month}-${o.day}`,
-    local: `${o.year}-${o.month}-${o.day}T${o.hour}:${o.minute}:${o.second}+08:00`,
-  };
+  return { isoDate: `${o.year}-${o.month}-${o.day}`, local: `${o.year}-${o.month}-${o.day}T${o.hour}:${o.minute}:${o.second}+08:00` };
+}
+
+export function inQuoteWindow(date) {
+  const local = nowTaipei(date).local;
+  const weekday = new Date(`${local.slice(0, 10)}T00:00:00Z`).getUTCDay();
+  const time = local.slice(11, 19);
+  // Include the five-minute freshness allowance after the 13:30 closing auction.
+  // Exchange holidays are not inferred from network errors or an empty response.
+  return weekday !== 0 && weekday !== 6 && time >= '09:00:00' && time <= '13:35:00';
 }
 
 function numericOrNull(v) {
-  if (v == null || v === '' || v === '-' || v === '--') return null;
+  if (v == null || String(v).trim() === '' || /^-+$/.test(String(v).trim())) return null;
   const n = Number(String(v).replaceAll(',', ''));
   return Number.isFinite(n) ? n : null;
 }
+const price = v => { const n = numericOrNull(v); return n > 0 ? n : null; };
 
-const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-
-async function rpc(method, params = {}) {
-  const headers = {
-    'content-type': 'application/json',
-    'accept': 'application/json, text/event-stream',
-    'MCP-Protocol-Version': PROTOCOL,
-    'Mcp-Method': method,
-  };
-  if (typeof params.name === 'string') headers['Mcp-Name'] = params.name;
-  const body = {
-    jsonrpc: '2.0', id: nextId++, method,
-    params: {
-      ...params,
-      _meta: {
-        'io.modelcontextprotocol/protocolVersion': PROTOCOL,
-        'io.modelcontextprotocol/clientCapabilities': {},
-      },
-    },
-  };
-  const res = await fetch(ENDPOINT, {
-    method: 'POST', headers, body: JSON.stringify(body), signal: AbortSignal.timeout(6500),
-  });
-  const text = await res.text();
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0,200)}`);
-  const line = res.headers.get('content-type')?.includes('text/event-stream')
-    ? text.split('\n').find(l => l.startsWith('data:'))?.slice(5)
-    : text;
-  if (!line) throw new Error('MCP 回應沒有資料');
-  const payload = JSON.parse(line);
-  if (payload.error) throw new Error(`JSON-RPC ${payload.error.code}: ${payload.error.message}`);
-  return payload.result;
+function age(date, time, now) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date ?? '') || !/^\d{2}:\d{2}:\d{2}$/.test(time ?? '')) return null;
+  const stamp = Date.parse(`${date}T${time}+08:00`);
+  const seconds = Math.floor((now.getTime() - stamp) / 1000);
+  // Never turn a future timestamp into a fresh quote by clamping its age to zero.
+  return Number.isFinite(seconds) && seconds >= 0 ? seconds : null;
 }
 
-function body(result) {
+export function normalize(q, market, previousByCode, now) {
+  const current = price(q.last);
+  const prev = previousByCode.get(q.code);
+  const carried = current == null && prev?.date === q.date && price(prev.last_trade) != null;
+  const last = current ?? (carried ? price(prev.last_trade) : null);
+  // Direct MIS must supply the actual trade time separately from its snapshot time.
+  const tradeTime = current != null
+    ? (Object.hasOwn(q, '_last_trade_time') ? q._last_trade_time : q.time) ?? null
+    : carried ? prev.last_trade_time : null;
+  const tradeAge = age(q.date, tradeTime, now);
+  const snapshotAge = age(q.date, q.time, now);
+  const bid = price(q.bid), ask = price(q.ask);
+  const sameDate = q.date === nowTaipei(now).isoDate;
+  const freshTrade = sameDate && last != null && tradeAge != null && tradeAge <= 300;
+  const freshBook = sameDate && snapshotAge != null && snapshotAge <= 300 && (bid != null || ask != null);
+  return {
+    code: q.code, name: q.name ?? null, market, date: q.date ?? null,
+    snapshot_time: q.time ?? null, snapshot_age_seconds: snapshotAge,
+    last_trade: last, last_trade_time: tradeTime, last_trade_age_seconds: tradeAge,
+    carried_forward_last_trade: carried, bid, ask,
+    analysis_mode: freshTrade ? 'last_trade' : freshBook ? 'bid_ask_only' : 'unusable',
+    open: numericOrNull(q.open), high: numericOrNull(q.high), low: numericOrNull(q.low),
+    prev_close: numericOrNull(q.prev_close), volume_lots: numericOrNull(q.volume),
+    limit_up: numericOrNull(q.limit_up), limit_down: numericOrNull(q.limit_down),
+    quote_source: q.quote_source,
+  };
+}
+
+export function parseRpc(text, contentType, id) {
+  const messages = contentType?.includes('text/event-stream')
+    ? text.replaceAll('\r\n', '\n').split(/\n\n/).map(event => event.split('\n')
+      .filter(line => line.startsWith('data:')).map(line => line.slice(5).trimStart()).join('\n')).filter(Boolean)
+    : [text];
+  for (const message of messages) {
+    const payload = JSON.parse(message);
+    if (payload.id !== id) continue; // Ignore notifications before the response.
+    if (payload.error) throw new Error(`JSON-RPC ${payload.error.code}: ${payload.error.message}`);
+    if (!payload.result) throw new Error('MCP response missing result');
+    return payload.result;
+  }
+  throw new Error('MCP response missing matching request ID');
+}
+
+function resultBody(result) {
+  if (result?.isError) throw new Error(result.content?.map(x => x.text).join(' ') || 'quote.realtime isError');
   if (result?.structuredContent) return result.structuredContent;
   const text = result?.content?.find(c => c.type === 'text')?.text;
-  if (!text) throw new Error('工具回應缺 structuredContent/text');
+  if (!text) throw new Error('MCP response missing structuredContent/text');
   return JSON.parse(text);
 }
 
-async function readPrevious() {
-  try { return JSON.parse(await readFile(LATEST, 'utf8')); }
-  catch { return { quotes: [] }; }
+function errorMessage(e) {
+  return [e?.message ?? String(e), e?.cause?.message].filter(Boolean).join(': ');
 }
 
-function normalize(q, market, previousByCode, runLocal) {
-  const currentLast = numericOrNull(q.last);
-  const prev = previousByCode.get(q.code);
-  const sameDatePrev = prev && prev.date === q.date ? prev : null;
-  const observedLastTime = q._last_trade_time ?? null;
-  const carried = currentLast == null && sameDatePrev?.last_trade != null;
-  const lastTrade = currentLast ?? (carried ? sameDatePrev.last_trade : null);
-  const lastTradeTime = currentLast != null ? (observedLastTime ?? q.time ?? null) : (carried ? sameDatePrev.last_trade_time : null);
+export async function collectQuotes({ fetch: request = globalThis.fetch, now = () => new Date(), wait = sleep, random = Math.random, previous = { quotes: [] } } = {}) {
+  const started = now();
+  const startedLocal = nowTaipei(started);
+  const base = { attempted_at: startedLocal.local, source: SOURCE, endpoint: ENDPOINT, expected_codes: EXPECTED };
+  if (!inQuoteWindow(started)) {
+    return { skipped: true, status: { ...base, state: 'skipped_outside_session', success: null,
+      reason: 'Outside weekday 09:00–13:35 Asia/Taipei quote window; no live quote attempted.', errors: [] } };
+  }
+  const previousByCode = new Map((Array.isArray(previous?.quotes) ? previous.quotes : []).filter(q => q && typeof q.code === 'string').map(q => [q.code, q]));
+  const errors = [], found = new Map();
+  const usable = (q, market) => normalize(q, market, previousByCode, now()).analysis_mode !== 'unusable';
+  const backoff = attempt => wait(500 * 2 ** (attempt - 1) + Math.floor(random() * 250));
+  let nextId = 1;
 
-  let tradeAgeSeconds = null;
-  if (q.date && lastTradeTime) {
-    const t = Date.parse(`${q.date}T${lastTradeTime}+08:00`);
-    const n = Date.parse(runLocal);
-    if (Number.isFinite(t) && Number.isFinite(n)) tradeAgeSeconds = Math.max(0, Math.floor((n - t) / 1000));
+  // Retry only unresolved symbols. A malformed or missing row must not discard its peers.
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const pending = GROUPS.flatMap(g => g.codes.filter(code => !found.has(code) || !usable(found.get(code), g.market)).map(code => ({ code, market: g.market })));
+    if (!pending.length) break;
+    try {
+      const url = new URL('https://mis.twse.com.tw/stock/api/getStockInfo.jsp');
+      url.searchParams.set('ex_ch', pending.map(s => `${s.market}_${s.code}.tw`).join('|'));
+      url.searchParams.set('json', '1'); url.searchParams.set('delay', '0');
+      url.searchParams.set('_', String(now().getTime()));
+      const response = await request(url, {
+        headers: { accept: 'application/json', 'user-agent': 'Mozilla/5.0', 'cache-control': 'no-cache' },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!response.ok) throw new Error(`MIS HTTP ${response.status}`);
+      const data = await response.json();
+      if (!Array.isArray(data.msgArray)) throw new Error('MIS response missing msgArray');
+      for (const x of data.msgArray) {
+        const symbol = pending.find(s => s.code === String(x.c) && s.market === x.ex);
+        if (!symbol) continue;
+        const date = String(x.d ?? '').replace(/^(\d{4})(\d{2})(\d{2})$/, '$1-$2-$3');
+        const epoch = Number(x.tlong);
+        if (!Number.isFinite(epoch) || epoch < 1e12) { errors.push(`[direct-MIS:${symbol.code}] missing exchange tlong`); continue; }
+        const snapshot = nowTaipei(new Date(epoch));
+        const snapshotAge = age(date, snapshot.local.slice(11, 19), now());
+        if (snapshot.isoDate !== date || date !== nowTaipei(now()).isoDate || snapshotAge == null || snapshotAge > 300) {
+          errors.push(`[direct-MIS:${symbol.code}] stale/invalid exchange timestamp`); continue;
+        }
+        const first = value => String(value ?? '').split('_')[0];
+        const q = { code: symbol.code, name: x.n, date, time: snapshot.local.slice(11, 19),
+          last: x.z, _last_trade_time: x.t ?? null, bid: first(x.b), ask: first(x.a),
+          open: x.o, high: x.h, low: x.l, prev_close: x.y, volume: x.v, limit_up: x.u, limit_down: x.w,
+          quote_source: 'TWSE MIS direct (exchange tlong validated)' };
+        if (usable(q, symbol.market)) found.set(symbol.code, q);
+      }
+    } catch (e) { errors.push(`[direct-MIS] attempt ${attempt}/3: ${errorMessage(e)}`); }
+    const unresolved = pending.filter(s => !found.has(s.code) || !usable(found.get(s.code), s.market));
+    if (!unresolved.length) break;
+    errors.push(`[direct-MIS] attempt ${attempt}/3 unresolved: ${unresolved.map(s => s.code).join(',')}`);
+    if (attempt < 3) await backoff(attempt);
   }
 
-  let snapshotAgeSeconds = null;
-  if (q.date && q.time) {
-    const t = Date.parse(`${q.date}T${q.time}+08:00`);
-    const n = Date.parse(runLocal);
-    if (Number.isFinite(t) && Number.isFinite(n)) snapshotAgeSeconds = Math.max(0, Math.floor((n - t) / 1000));
-  }
-
-  const bid = numericOrNull(q.bid);
-  const ask = numericOrNull(q.ask);
-  const tradeUsable = q.date === runLocal.slice(0, 10) && tradeAgeSeconds != null && tradeAgeSeconds <= 300;
-  const bidAskUsable = q.date === runLocal.slice(0, 10) && snapshotAgeSeconds != null && snapshotAgeSeconds <= 300 && ((bid != null && bid > 0) || (ask != null && ask > 0));
-  const analysisMode = tradeUsable ? 'last_trade' : bidAskUsable ? 'bid_ask_only' : 'unusable';
-
-  return {
-    code: q.code ?? null,
-    name: q.name ?? null,
-    market,
-    date: q.date ?? null,
-    snapshot_time: q.time ?? null,
-    snapshot_age_seconds: snapshotAgeSeconds,
-    last_trade: lastTrade,
-    last_trade_time: lastTradeTime,
-    last_trade_age_seconds: tradeAgeSeconds,
-    carried_forward_last_trade: carried,
-    bid,
-    ask,
-    analysis_mode: analysisMode,
-    open: numericOrNull(q.open),
-    high: numericOrNull(q.high),
-    low: numericOrNull(q.low),
-    prev_close: numericOrNull(q.prev_close),
-    volume_lots: numericOrNull(q.volume),
-    limit_up: numericOrNull(q.limit_up),
-    limit_down: numericOrNull(q.limit_down),
-  };
-}
-
-async function fetchCodes(codes, market, previousByCode, taipei, errors) {
-  const latestSnapshotByCode = new Map();
-  const lastObservedByCode = new Map();
-  const pending = new Set(codes);
-  const maxAttempts = 2;
-
-  for (let attempt = 1; attempt <= maxAttempts && pending.size; attempt++) {
-    // Query each symbol independently. A 520 for one symbol must not take the whole market batch down.
-    await Promise.all([...pending].map(async code => {
-      try {
-        const result = await rpc('tools/call', { name: 'quote.realtime', arguments: { codes: [code], market } });
-        if (result?.isError) throw new Error(result.content?.map(x => x.text).join(' ') || 'quote.realtime isError');
-        const data = body(result);
-        const q = (data.quotes ?? []).find(x => x.code === code);
-        if (!q) throw new Error('empty quote response');
-        latestSnapshotByCode.set(code, q);
-        if (numericOrNull(q.last) != null) lastObservedByCode.set(code, { last: q.last, time: q.time ?? null });
-        const normalized = normalize(
-          lastObservedByCode.has(code) ? { ...q, last: lastObservedByCode.get(code).last, _last_trade_time: lastObservedByCode.get(code).time } : q,
-          market, previousByCode, taipei.local
-        );
-        // A current-date snapshot is enough to stop network retries. Freshness is still enforced later.
-        if (normalized.date === taipei.isoDate && normalized.analysis_mode !== 'unusable') pending.delete(code);
-        for (const caveat of data.caveats ?? []) errors.push(`[${market}:${code}] caveat: ${caveat}`);
-      } catch (e) {
-        errors.push(`[${market}:${code}] attempt ${attempt}/${maxAttempts}: ${e?.message ?? String(e)}`);
+  const unresolved = GROUPS.flatMap(g => g.codes.filter(code => !found.has(code) || !usable(found.get(code), g.market)).map(code => ({ code, market: g.market })));
+  // Limit relay concurrency to avoid a burst of eight requests against one upstream.
+  let cursor = 0;
+  await Promise.all(Array.from({ length: Math.min(4, unresolved.length) }, async () => {
+    while (cursor < unresolved.length) {
+      const { code, market } = unresolved[cursor++];
+      let observed = null;
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          const id = nextId++;
+          const res = await request(ENDPOINT, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream',
+              'MCP-Protocol-Version': PROTOCOL, 'Mcp-Method': 'tools/call', 'Mcp-Name': 'quote.realtime' },
+            body: JSON.stringify({ jsonrpc: '2.0', id, method: 'tools/call', params: {
+              name: 'quote.realtime', arguments: { codes: [code], market },
+              _meta: { 'io.modelcontextprotocol/protocolVersion': PROTOCOL, 'io.modelcontextprotocol/clientCapabilities': {} },
+            } }), signal: AbortSignal.timeout(6500),
+          });
+          if (!res.ok) throw new Error(`MCP HTTP ${res.status}`);
+          const data = resultBody(parseRpc(await res.text(), res.headers.get('content-type'), id));
+          const q = data.quotes?.find(row => String(row.code) === code);
+          if (!q) throw new Error('empty quote response');
+          // Carry a trade only within the same exchange date, retaining its original time.
+          if (price(q.last) != null) observed = { date: q.date, last: q.last, time: q.time };
+          const row = { ...q, code, quote_source: 'taux-io/twse-mcp relay' };
+          if (price(q.last) == null && observed?.date === q.date) {
+            row.last = observed.last; row._last_trade_time = observed.time;
+          }
+          found.set(code, row);
+          if (usable(row, market)) break;
+          throw new Error('stale, invalid or unusable quote');
+        } catch (e) { errors.push(`[${market}:${code}] attempt ${attempt}/2: ${errorMessage(e)}`); }
+        if (attempt < 2) await backoff(attempt);
       }
-    }));
-    if (pending.size && attempt < maxAttempts) await sleep(800);
-  }
-
-  return codes.map(code => {
-    const snapshot = latestSnapshotByCode.get(code);
-    if (!snapshot) return null;
-    const observed = lastObservedByCode.get(code);
-    return normalize(observed ? { ...snapshot, last: observed.last, _last_trade_time: observed.time } : snapshot, market, previousByCode, taipei.local);
-  }).filter(Boolean);
-}
-
-// Indepen// Prefer direct TWSE MIS for all quote fields. The MCP proxy may serve a cached
-// prior-session payload even when its request itself succeeds.
-// Do not infer freshness from request time: validate each symbol's exchange tlong.
-async function fetchDirectMisQuotes(taipei, previousByCode, errors) {
-  try {
-    const channels = GROUPS.flatMap(g => g.codes.map(code => `${g.market}_${code}.tw`));
-    const url = new URL('https://mis.twse.com.tw/stock/api/getStockInfo.jsp');
-    url.searchParams.set('ex_ch', channels.join('|'));
-    url.searchParams.set('json', '1');
-    url.searchParams.set('delay', '0');
-    url.searchParams.set('_', String(Date.now()));
-    const response = await fetch(url, {
-      headers: { accept: 'application/json', 'user-agent': 'Mozilla/5.0' },
-      signal: AbortSignal.timeout(12000),
-    });
-    if (!response.ok) throw new Error(`MIS HTTP ${response.status}`);
-    const data = await response.json();
-    if (!Array.isArray(data.msgArray)) throw new Error('MIS response missing msgArray');
-    const out = new Map();
-    const requestedAt = Date.parse(taipei.local);
-    for (const x of data.msgArray) {
-      const group = GROUPS.find(g => g.codes.includes(String(x.c)) && g.market === x.ex);
-      if (!group) continue;
-      const code = String(x.c);
-      const date = String(x.d ?? '').replace(/^(\d{4})(\d{2})(\d{2})$/, '$1-$2-$3');
-      const snapshotEpoch = Number(x.tlong);
-      // A valid response can still contain yesterday's quote. Never stamp it as today.
-      if (date !== taipei.isoDate) {
-        errors.push(`[direct-MIS:${code}] stale trading date ${date}`);
-        continue;
-      }
-      if (!Number.isFinite(snapshotEpoch) || snapshotEpoch < 1e12) {
-        errors.push(`[direct-MIS:${code}] missing exchange snapshot timestamp (tlong)`);
-        continue;
-      }
-      const snapshotLocal = nowTaipei(new Date(snapshotEpoch));
-      const snapshotAge = Math.floor((requestedAt - snapshotEpoch) / 1000);
-      if (snapshotLocal.isoDate !== date || snapshotAge < -30 || snapshotAge > 300) {
-        errors.push(`[direct-MIS:${code}] stale/invalid exchange timestamp; age=${snapshotAge}s`);
-        continue;
-      }
-      const firstLevel = value => numericOrNull(String(value ?? '').split('_')[0]);
-      const q = {
-        code, name: x.n ?? null, date,
-        time: snapshotLocal.local.slice(11, 19),
-        last: x.z, _last_trade_time: x.t ?? null,
-        bid: firstLevel(x.b), ask: firstLevel(x.a),
-        open: x.o, high: x.h, low: x.l, prev_close: x.y,
-        volume: x.v, limit_up: x.u, limit_down: x.w,
-      };
-      const normalized = normalize(q, group.market, previousByCode, taipei.local);
-      if (normalized.analysis_mode === 'unusable') {
-        errors.push(`[direct-MIS:${code}] quote has no recent trade or valid bid/ask`);
-        continue;
-      }
-      normalized.quote_source = 'TWSE MIS direct (exchange tlong validated)';
-      out.set(code, normalized);
     }
-    if (!out.size) errors.push('[direct-MIS] no usable same-day exchange quotes');
-    return out;
-  } catch (e) {
-    errors.push(`[direct-MIS] ${e?.message ?? String(e)}`);
-    return new Map();
-  }
+  }));
+
+  // Recompute every age at publication, after all timeouts, retries and relay calls.
+  const finished = now(), taipei = nowTaipei(finished);
+  const collected = GROUPS.flatMap(g => g.codes.filter(code => found.has(code)).map(code => normalize(found.get(code), g.market, previousByCode, finished)));
+  const publishable = collected.filter(q => q.analysis_mode !== 'unusable');
+  const missing = EXPECTED.filter(code => !publishable.some(q => q.code === code));
+  const success = missing.length === 0;
+  const status = { ...base, completed_at: taipei.local, state: success ? 'ok' : publishable.length ? 'partial' : 'unavailable',
+    received_codes: collected.map(q => q.code), fresh_trade_codes_le_5m: collected.filter(q => q.analysis_mode === 'last_trade').map(q => q.code),
+    fresh_bid_ask_only_codes_le_5m: collected.filter(q => q.analysis_mode === 'bid_ask_only').map(q => q.code),
+    unusable_codes: collected.filter(q => q.analysis_mode === 'unusable').map(q => q.code), missing_codes: missing,
+    stale_date_codes: collected.filter(q => q.date !== taipei.isoDate).map(q => q.code), errors, success };
+  const latest = { fetched_at: taipei.local, trading_date: taipei.isoDate, source: SOURCE,
+    freshness_rule: 'Recalculate age from exchange date/time at use. Use last_trade only with positive price and age 0..300s; bid/ask only with snapshot age 0..300s. Never relabel bid/ask as a trade.',
+    complete: success, missing_codes: missing, quotes: publishable, errors };
+  return { status, latest, skipped: false };
 }
 
-async function main() {
-  await mkdir(new URL('../quotes/', import.meta.url), { recursive: true });
-  const prev = await readPrevious();
-  const previousByCode = new Map((prev.quotes ?? []).map(q => [q.code, q]));
-  const taipei = nowTaipei();
-  const errors = [];
-  // Fetch direct exchange quotes first. Query the MCP relay only for symbols
-  // that direct MIS could not verify, so a stale proxy cannot mask a fresh feed.
-  const direct = await fetchDirectMisQuotes(taipei, previousByCode, errors);
-  const collected = [...direct.values()];
-  for (const g of GROUPS) {
-    const unresolved = g.codes.filter(code => !direct.has(code));
-    if (!unresolved.length) continue;
-    const rows = await fetchCodes(unresolved, g.market, previousByCode, taipei, errors);
-    for (const row of rows) {
-      row.quote_source = 'taux-io/twse-mcp relay';
-      collected.push(row);
+async function atomicJson(url, value) {
+  const temp = new URL(`${url.href}.${process.pid}.tmp`);
+  await writeFile(temp, JSON.stringify(value, null, 2) + '\n');
+  await rename(temp, url);
+}
+
+export async function run({ root = ROOT, ...options } = {}) {
+  await mkdir(root, { recursive: true });
+  let previous = { quotes: [] };
+  try { previous = JSON.parse(await readFile(new URL('latest.json', root), 'utf8')); } catch { /* First run or damaged snapshot. */ }
+  const result = await collectQuotes({ ...options, previous });
+  // Write even an empty failed snapshot: an old complete=true must not survive an outage.
+  if (result.latest) await atomicJson(new URL('latest.json', root), result.latest);
+  await atomicJson(new URL('status.json', root), result.status);
+  return result;
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  run().then(({ status, skipped }) => {
+    console.log(JSON.stringify(status, null, 2));
+    if (!skipped && !status.success) {
+      console.error('LIVE_QUOTE_VALIDATION_FAILED: missing, stale or unusable quotes. See quotes/status.json.');
+      process.exitCode = 1;
     }
-  }
-
-  const byCode = new Map(collected.map(q => [q.code, q]));
-  const expected = GROUPS.flatMap(g => g.codes);
-  const missing = expected.filter(c => !byCode.has(c));
-  const staleDate = collected.filter(q => q.date !== taipei.isoDate).map(q => q.code);
-  const fresh = collected.filter(q => q.analysis_mode === 'last_trade').map(q => q.code);
-  const bidAskOnly = collected.filter(q => q.analysis_mode === 'bid_ask_only').map(q => q.code);
-  const unusable = collected.filter(q => q.analysis_mode === 'unusable').map(q => q.code);
-
-  const status = {
-    attempted_at: taipei.local,
-    source: 'TWSE MIS direct first; taux-io/twse-mcp per-symbol fallback',
-    endpoint: ENDPOINT,
-    expected_codes: expected,
-    received_codes: collected.map(q => q.code),
-    fresh_trade_codes_le_5m: fresh,
-    fresh_bid_ask_only_codes_le_5m: bidAskOnly,
-    unusable_codes: unusable,
-    missing_codes: missing,
-    stale_date_codes: staleDate,
-    errors,
-    // Completion is based on the FINAL verified quotes, not transient recovered retries.
-    success: collected.length === expected.length && missing.length === 0 && staleDate.length === 0 && unusable.length === 0,
-  };
-
-  await writeFile(STATUS, JSON.stringify(status, null, 2) + '\n');
-
-  // Publish only verified same-day usable rows, even when some symbols fail.
-  // Never carry forward stale rows or label an incomplete snapshot as complete.
-  const publishable = collected.filter(q => q.date === taipei.isoDate && q.analysis_mode !== 'unusable');
-  if (publishable.length) {
-    const latest = {
-      fetched_at: taipei.local,
-      trading_date: taipei.isoDate,
-      source: 'TWSE MIS direct and/or verified taux-io/twse-mcp relay',
-      freshness_rule: 'Use last_trade only when last_trade_age_seconds <= 300. If last_trade is unavailable but bid/ask snapshot_age_seconds <= 300, use analysis_mode=bid_ask_only and never label bid/ask as a trade price.',
-      complete: status.success,
-      missing_codes: missing,
-      quotes: expected.map(c => byCode.get(c)).filter(q => q && q.date === taipei.isoDate && q.analysis_mode !== 'unusable'),
-      errors,
-    };
-    await writeFile(LATEST, JSON.stringify(latest, null, 2) + '\n');
-  }
-
-  console.log(JSON.stringify(status, null, 2));
-  if (!status.success) {
-    console.error('LIVE_QUOTE_VALIDATION_FAILED: one or more codes are missing, stale or unusable. See quotes/status.json.');
-    process.exitCode = 1;
-  }
+  }).catch(e => { console.error(e); process.exitCode = 1; });
 }
-
-main().catch(async (e) => {
-  const taipei = nowTaipei();
-  const status = { attempted_at: taipei.local, success: false, errors: [e?.stack ?? String(e)] };
-  await mkdir(new URL('../quotes/', import.meta.url), { recursive: true });
-  await writeFile(STATUS, JSON.stringify(status, null, 2) + '\n');
-  console.error(e);
-  process.exit(1);
-});
-// report-refresh-trigger: 2026-10-01T11:43+08:00
-// report-final-refresh: 2026-10-01T11:47+08:00
-
-// health-refresh-trigger: 2026-10-20T11:02:57+08:00

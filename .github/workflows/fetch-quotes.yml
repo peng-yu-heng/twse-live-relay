@@ -16,8 +16,9 @@ on:
   schedule:
     # GitHub schedules are best-effort and may be delayed or dropped.
     # Avoid minute 00, which GitHub notes is heavily loaded.
-    # UTC 01:02-05:57 = Taiwan 09:02-13:57, Monday-Friday.
-    - cron: '2-57/5 1-5 * * 1-5'
+    # Taiwan 09:02-13:32, Monday-Friday; do not poll stale post-close quotes.
+    - cron: '2-57/5 1-4 * * 1-5'
+    - cron: '2-32/5 5 * * 1-5'
     # Redundant off-minute checks near report deadlines (09:30, 11:00, 13:00).
     - cron: '26,29,31 1 * * 1-5'
     - cron: '54,59 2 * * 1-5'
@@ -28,7 +29,7 @@ permissions:
 
 concurrency:
   group: twse-live-relay
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   fetch:
@@ -39,19 +40,24 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Quote regression tests
+        run: node --test tests/*.test.mjs
       - name: Fetch TWSE/OTC live quotes
         id: fetch
         continue-on-error: true
         run: node scripts/fetch-quotes.mjs
       - name: Commit latest quote snapshot
-        if: always()
+        if: ${{ !cancelled() && steps.fetch.outcome != 'skipped' }}
         run: |
           set -euo pipefail
           git config user.name "twse-live-relay-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           snapshot_dir="$(mktemp -d)"
-          cp quotes/latest.json "$snapshot_dir/latest.json"
+          # A skipped run updates status only, retaining the current remote snapshot.
+          if node -e "process.exit(JSON.parse(require('fs').readFileSync('quotes/status.json')).state === 'skipped_outside_session' ? 1 : 0)"; then
+            cp quotes/latest.json "$snapshot_dir/latest.json"
+          fi
           cp quotes/status.json "$snapshot_dir/status.json"
 
           pushed=false
@@ -59,7 +65,21 @@ jobs:
             git rebase --abort 2>/dev/null || true
             git fetch origin main
             git reset --hard origin/main
-            cp "$snapshot_dir/latest.json" quotes/latest.json
+            # Refuse to overwrite results collected by a newer run.
+            if node scripts/should-publish-quotes.mjs "$snapshot_dir/status.json" quotes/status.json; then
+              if test -f "$snapshot_dir/latest.json"; then
+                cp "$snapshot_dir/latest.json" quotes/latest.json
+              fi
+            else
+              publication_status=$?
+              if [ "$publication_status" -ne 1 ]; then
+                echo "Cannot safely determine quote publication order"
+                exit "$publication_status"
+              fi
+              echo "A newer quote run is already published"
+              pushed=true
+              break
+            fi
             cp "$snapshot_dir/status.json" quotes/status.json
             git add quotes/latest.json quotes/status.json
 
