@@ -1,5 +1,5 @@
 {
-  "attempted_at": "2026-11-04T15:19:52+08:00",
+  "attempted_at": "2026-11-04T15:43:22+08:00",
   "source": "TWSE MIS direct first; taux-io/twse-mcp per-symbol fallback",
   "endpoint": "https://twse-mcp.taux.io/mcp",
   "expected_codes": [
