@@ -1,6 +1,6 @@
 {
-  "attempted_at": "2026-11-04T15:20:50.527Z",
-  "trading_date": "2026-11-04",
+  "attempted_at": "2026-11-05T14:29:54.374Z",
+  "trading_date": "2026-11-05",
   "expected_codes": [
     "3037",
     "8046",
@@ -24,6 +24,6 @@
   "missing_codes": [],
   "success": true,
   "errors": [
-    "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL: 3037: wrong trade date 2026-11-03"
+    "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL: 3037: wrong trade date 2026-11-04"
   ]
 }
