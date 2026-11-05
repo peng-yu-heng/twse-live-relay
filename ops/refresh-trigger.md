@@ -1,6 +1,6 @@
 # Quote refresh trigger
 
-This file is intentionally updated by operations/report jobs when a fresh quote snapshot is required.
+This existing file is updated by report jobs to request a fresh quote snapshot without relying on delayed GitHub cron runs.
 
-Last forced refresh request: 2026-11-04 Asia/Taipei, final delivery quote refresh after the eight-stock report was completed.
-Reason: ensure the attached research uses a recent exchange quote timestamp at send time. No schedule changes.
+Last request: 2026-11-05 13:31 Asia/Taipei.
+Reason: verify the repaired independent fallback and supplemental report; keep original exchange timestamps and reject delayed data.
