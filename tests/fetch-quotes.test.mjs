@@ -4,7 +4,7 @@ import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { collectQuotes, normalize, inQuoteWindow, parseRpc, run, GROUPS } from '../scripts/fetch-quotes.mjs';
+import { yahooQuote, collectQuotes, normalize, inQuoteWindow, parseRpc, run, GROUPS } from '../scripts/fetch-quotes.mjs';
 
 // Synthetic exchange responses: deterministic regression tests, never production prices.
 const AT = new Date('2026-11-03T09:30:00+08:00');
@@ -158,4 +158,34 @@ test('off-hours run preserves historical data but explicitly marks status skippe
 test('damaged previous quote structure does not prevent a new successful fetch', async () => {
   const r = await collectQuotes({ ...opts, previous: { quotes: {} }, fetch: async () => mis() });
   assert.equal(r.status.success, true);
+});
+
+const yahoo = (code = '6147', market = 'otc', changes = {}) => ({ chart: { error: null, result: [{
+  meta: { symbol: code + (market === 'otc' ? '.TWO' : '.TW'), currency: 'TWD',
+    exchangeName: market === 'otc' ? 'TWO' : 'TAI', exchangeTimezoneName: 'Asia/Taipei',
+    regularMarketTime: AT.getTime() / 1000, regularMarketPrice: 100,
+    regularMarketDayHigh: 102, regularMarketDayLow: 98, regularMarketVolume: 100000,
+    chartPreviousClose: 101, currentTradingPeriod: { regular: { start: AT.getTime() / 1000 - 1800 } }, ...changes },
+  timestamp: [AT.getTime() / 1000 - 1800], indicators: { quote: [{ open: [99] }] }
+}] } });
+test('independent fallback validates identity, exchange, dates and original trade time', () => {
+  assert.equal(yahooQuote(yahoo(), '6147', 'otc', AT).volume, 100);
+  for (const changes of [{symbol:'3037.TW'}, {currency:'USD'}, {exchangeName:'TAI'},
+    {regularMarketTime:AT.getTime()/1000-301}, {regularMarketTime:AT.getTime()/1000+1},
+    {regularMarketTime:AT.getTime()/1000-86400}, {regularMarketPrice:0}]) {
+    assert.throws(() => yahooQuote(yahoo('6147','otc',changes),'6147','otc',AT));
+  }
+});
+test('independent fallback rescues only the failed symbol without altering valid official peers', async () => {
+  const rescued = [];
+  const r = await collectQuotes({...opts,fetch:async(url,init)=>{
+    if(new URL(url).hostname==='mis.twse.com.tw')return mis(SYMBOLS.filter(s=>s.code!=='6147'));
+    if(new URL(url).hostname==='twse-mcp.taux.io')return relay(init,{date:'2026-11-02'});
+    rescued.push(new URL(url).pathname);
+    return new Response(JSON.stringify(yahoo()),{headers:{'content-type':'application/json'}});
+  }});
+  assert.equal(r.latest.complete,true);
+  assert.equal(rescued.length,1);
+  assert.equal(r.latest.quotes.find(q=>q.code==='6147').analysis_mode,'last_trade');
+  assert.match(r.latest.quotes.find(q=>q.code==='3037').quote_source,/TWSE MIS/);
 });

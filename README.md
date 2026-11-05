@@ -57,3 +57,7 @@ For proxy-based cloud environments, activate `NODE_USE_ENV_PROXY=1` with a recen
 Node.js 22 release, keep the inherited proxy and CA settings, and allow HTTPS to
 `mis.twse.com.tw` and `twse-mcp.taux.io`. A proxy policy denial needs an environment
 setting change; retries cannot resolve it.
+
+## Independent live backup (2026-11-05)
+
+When MIS and its MCP proxy cannot validate a symbol, query Yahoo Finance's chart feed for that symbol only. Accept a trade only after exact symbol, exchange, TWD currency, Asia/Taipei timezone, current Taiwan date, positive price and original regularMarketTime age 0–300 seconds are verified. Never use HTTP fetch time as trade time. No bid/ask is inferred; the source is explicitly secondary. Missing or stale backup data keeps the symbol unusable and the run incomplete. Publication still recalculates all ages. Regression tests cover invalid identity/time and isolated fallback recovery.

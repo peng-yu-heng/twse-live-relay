@@ -9,7 +9,7 @@ export const GROUPS = [
   { market: 'otc', codes: ['8358','6147'] },
 ];
 const EXPECTED = GROUPS.flatMap(g => g.codes);
-const SOURCE = 'TWSE MIS direct first; taux-io/twse-mcp per-symbol fallback';
+const SOURCE = 'TWSE MIS direct; MCP per-symbol fallback; independent Yahoo Finance timestamp-validated fallback';
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 export function nowTaipei(d = new Date()) {
@@ -71,6 +71,32 @@ export function normalize(q, market, previousByCode, now) {
     limit_up: numericOrNull(q.limit_up), limit_down: numericOrNull(q.limit_down),
     quote_source: q.quote_source,
   };
+}
+
+
+export function yahooQuote(data, code, market, now) {
+  const symbol = code + (market === 'otc' ? '.TWO' : '.TW');
+  const result = data?.chart?.result?.[0], m = result?.meta;
+  if (data?.chart?.error || !m || m.symbol !== symbol || m.currency !== 'TWD'
+      || m.exchangeTimezoneName !== 'Asia/Taipei'
+      || m.exchangeName !== (market === 'otc' ? 'TWO' : 'TAI')
+      || !Number.isFinite(m.regularMarketTime) || m.regularMarketTime < 1e9) {
+    throw new Error('Yahoo symbol, exchange, currency or timestamp mismatch');
+  }
+  const stamp = nowTaipei(new Date(m.regularMarketTime * 1000));
+  const times = result.timestamp ?? [], opens = result.indicators?.quote?.[0]?.open ?? [];
+  const start = m.currentTradingPeriod?.regular?.start;
+  const first = times.findIndex((t, i) => t >= start && price(opens[i]) != null);
+  const q = { code, name: m.shortName ?? m.longName, date: stamp.isoDate, time: stamp.local.slice(11, 19),
+    _last_trade_time: stamp.local.slice(11, 19), last: m.regularMarketPrice, bid: null, ask: null,
+    open: first >= 0 ? opens[first] : null, high: m.regularMarketDayHigh, low: m.regularMarketDayLow,
+    prev_close: m.chartPreviousClose ?? m.previousClose,
+    volume: numericOrNull(m.regularMarketVolume) == null ? null : Number(m.regularMarketVolume) / 1000,
+    quote_source: 'Yahoo Finance chart meta regularMarketTime (secondary independent feed)' };
+  if (normalize(q, market, new Map(), now).analysis_mode !== 'last_trade') {
+    throw new Error('Yahoo trade missing, future, prior date or older than five minutes');
+  }
+  return q;
 }
 
 export function parseRpc(text, contentType, id) {
@@ -190,6 +216,27 @@ export async function collectQuotes({ fetch: request = globalThis.fetch, now = (
         } catch (e) { errors.push(`[${market}:${code}] attempt ${attempt}/2: ${errorMessage(e)}`); }
         if (attempt < 2) await backoff(attempt);
       }
+    }
+  }));
+
+
+  // A separate provider is necessary: MIS and the MCP relay share one upstream.
+  const yahooPending = GROUPS.flatMap(g => g.codes
+    .filter(code => !found.has(code) || !usable(found.get(code), g.market))
+    .map(code => ({ code, market: g.market })));
+  let yahooCursor = 0;
+  await Promise.all(Array.from({ length: Math.min(4, yahooPending.length) }, async () => {
+    while (yahooCursor < yahooPending.length) {
+      const { code, market } = yahooPending[yahooCursor++];
+      try {
+        const symbol = code + (market === 'otc' ? '.TWO' : '.TW');
+        const url = new URL('https://query1.finance.yahoo.com/v8/finance/chart/' + symbol);
+        url.searchParams.set('interval', '1m'); url.searchParams.set('range', '1d');
+        const res = await request(url, { headers: { accept: 'application/json', 'user-agent': 'Mozilla/5.0' },
+          signal: AbortSignal.timeout(8000) });
+        if (!res.ok) throw new Error('Yahoo HTTP ' + res.status);
+        found.set(code, yahooQuote(await res.json(), code, market, now()));
+      } catch (e) { errors.push('[yahoo:' + code + '] ' + errorMessage(e)); }
     }
   }));
 
