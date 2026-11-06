@@ -1,5 +1,5 @@
 {
-  "attempted_at": "2026-11-06T09:38:48+08:00",
+  "attempted_at": "2026-11-06T12:59:34+08:00",
   "source": "TWSE MIS direct; MCP per-symbol fallback; Cnyes and Yahoo Finance timestamp-validated fallbacks",
   "endpoint": "https://twse-mcp.taux.io/mcp",
   "expected_codes": [
@@ -12,7 +12,7 @@
     "8358",
     "6147"
   ],
-  "completed_at": "2026-11-06T09:38:56+08:00",
+  "completed_at": "2026-11-06T12:59:36+08:00",
   "state": "ok",
   "received_codes": [
     "3037",
@@ -25,29 +25,20 @@
     "6147"
   ],
   "fresh_trade_codes_le_5m": [
-    "3037",
     "8046",
+    "8358"
+  ],
+  "fresh_bid_ask_only_codes_le_5m": [
+    "3037",
     "3189",
     "1802",
     "1303",
     "2408",
-    "8358",
     "6147"
   ],
-  "fresh_bid_ask_only_codes_le_5m": [],
   "unusable_codes": [],
   "missing_codes": [],
   "stale_date_codes": [],
-  "errors": [
-    "[direct-MIS] attempt 1/3 unresolved: 3037,3189,1303,2408,8358,6147",
-    "[direct-MIS] attempt 2/3 unresolved: 3037,3189,1303,2408,8358,6147",
-    "[direct-MIS] attempt 3/3 unresolved: 3037,3189,1303,2408,8358,6147",
-    "[tse:3037] attempt 1/2: stale, invalid or unusable quote",
-    "[tse:3189] attempt 1/2: stale, invalid or unusable quote",
-    "[tse:2408] attempt 1/2: stale, invalid or unusable quote",
-    "[tse:3189] attempt 2/2: stale, invalid or unusable quote",
-    "[tse:2408] attempt 2/2: stale, invalid or unusable quote",
-    "[tse:3037] attempt 2/2: stale, invalid or unusable quote"
-  ],
+  "errors": [],
   "success": true
 }
