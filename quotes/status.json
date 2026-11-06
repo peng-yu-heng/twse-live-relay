@@ -1,5 +1,5 @@
 {
-  "attempted_at": "2026-11-06T13:04:00+08:00",
+  "attempted_at": "2026-11-06T15:45:23+08:00",
   "source": "TWSE MIS direct; MCP per-symbol fallback; Cnyes and Yahoo Finance timestamp-validated fallbacks",
   "endpoint": "https://twse-mcp.taux.io/mcp",
   "expected_codes": [
@@ -12,33 +12,8 @@
     "8358",
     "6147"
   ],
-  "completed_at": "2026-11-06T13:04:02+08:00",
-  "state": "ok",
-  "received_codes": [
-    "3037",
-    "8046",
-    "3189",
-    "1802",
-    "1303",
-    "2408",
-    "8358",
-    "6147"
-  ],
-  "fresh_trade_codes_le_5m": [
-    "1303"
-  ],
-  "fresh_bid_ask_only_codes_le_5m": [
-    "3037",
-    "8046",
-    "3189",
-    "1802",
-    "2408",
-    "8358",
-    "6147"
-  ],
-  "unusable_codes": [],
-  "missing_codes": [],
-  "stale_date_codes": [],
-  "errors": [],
-  "success": true
+  "state": "skipped_outside_session",
+  "success": null,
+  "reason": "Outside weekday 09:00–13:35 Asia/Taipei quote window; no live quote attempted.",
+  "errors": []
 }
