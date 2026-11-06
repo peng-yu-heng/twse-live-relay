@@ -4,7 +4,7 @@ import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { yahooQuote, collectQuotes, normalize, inQuoteWindow, parseRpc, run, GROUPS } from '../scripts/fetch-quotes.mjs';
+import { cnyesQuote, yahooQuote, collectQuotes, normalize, inQuoteWindow, parseRpc, run, GROUPS } from '../scripts/fetch-quotes.mjs';
 
 // Synthetic exchange responses: deterministic regression tests, never production prices.
 const AT = new Date('2026-11-03T09:30:00+08:00');
@@ -181,6 +181,7 @@ test('independent fallback rescues only the failed symbol without altering valid
   const r = await collectQuotes({...opts,fetch:async(url,init)=>{
     if(new URL(url).hostname==='mis.twse.com.tw')return mis(SYMBOLS.filter(s=>s.code!=='6147'));
     if(new URL(url).hostname==='twse-mcp.taux.io')return relay(init,{date:'2026-11-02'});
+    if(new URL(url).hostname==='ws.api.cnyes.com')return Response.json({statusCode:503,data:[]});
     rescued.push(new URL(url).pathname);
     return new Response(JSON.stringify(yahoo()),{headers:{'content-type':'application/json'}});
   }});
@@ -188,4 +189,52 @@ test('independent fallback rescues only the failed symbol without altering valid
   assert.equal(rescued.length,1);
   assert.equal(r.latest.quotes.find(q=>q.code==='6147').analysis_mode,'last_trade');
   assert.match(r.latest.quotes.find(q=>q.code==='3037').quote_source,/TWSE MIS/);
+});
+
+const cnyes = (code='6147', changes={}) => ({statusCode:200,data:[{
+  '0':`TWS:${code}:STOCK`, '800013':`TWS:${code}:STOCK`, '200010':code,
+  '200061':'COMMON', '200009':'test', '200007':AT.getTime()/1000,
+  '6':100, '12':102, '13':98, '200013':125, ...changes,
+}]});
+test('Cnyes requires exact Taiwan stock identity and an original fresh trade time', () => {
+  const q=cnyesQuote(cnyes(),'6147','otc',AT);
+  assert.equal(q.last,100); assert.equal(q.volume,125);
+  assert.equal(q.open,null); assert.equal(q.prev_close,null);
+  assert.equal(q.bid,null); assert.equal(q.ask,null);
+  for(const changes of [{'0':'TWS:3037:STOCK'},{'800013':'TWS:3037:STOCK'},
+    {'200010':'3037'},{'200061':'INDEX'},{'200007':null},{'200007':String(AT.getTime()/1000)},
+    {'200007':AT.getTime()/1000-301},{'200007':AT.getTime()/1000+1},
+    {'200007':AT.getTime()/1000-86400},{'6':0}])
+    assert.throws(()=>cnyesQuote(cnyes('6147',changes),'6147','otc',AT));
+  assert.throws(()=>cnyesQuote(cnyes(),'6147','tse',AT));
+  assert.equal(cnyesQuote(cnyes('6147',{'200007':AT.getTime()/1000-300}),'6147','otc',AT).last,100);
+});
+test('Cnyes rescues all missing stocks without overwriting fresh official peers or calling delayed Yahoo',async()=>{
+  const rescued=[];
+  const r=await collectQuotes({...opts,fetch:async(url,init)=>{
+    const host=new URL(url).hostname;
+    if(host==='mis.twse.com.tw')return mis(SYMBOLS.filter(s=>['3037','1802','8358'].includes(s.code)));
+    if(host==='twse-mcp.taux.io')return relay(init,{date:'2026-11-02'});
+    if(host==='ws.api.cnyes.com'){
+      const code=new URL(url).pathname.split(':')[1]; rescued.push(code);
+      return Response.json(cnyes(code));
+    }
+    assert.fail('must not call delayed Yahoo after successful Cnyes recovery');
+  }});
+  assert.equal(r.latest.complete,true);assert.equal(r.latest.quotes.length,8);
+  assert.deepEqual(rescued.sort(),['1303','2408','3189','6147','8046']);
+  assert.match(r.latest.quotes.find(q=>q.code==='3037').quote_source,/TWSE MIS/);
+  assert.match(r.latest.quotes.find(q=>q.code==='3189').source_url,/cnyes/);
+});
+test('delayed Cnyes remains rejected and permits timestamp-validated Yahoo recovery',async()=>{
+  const r=await collectQuotes({...opts,fetch:async(url,init)=>{
+    const host=new URL(url).hostname;
+    if(host==='mis.twse.com.tw')return mis(SYMBOLS.filter(s=>s.code!=='6147'));
+    if(host==='twse-mcp.taux.io')return relay(init,{date:'2026-11-02'});
+    if(host==='ws.api.cnyes.com')return Response.json(cnyes('6147',{'200007':AT.getTime()/1000-1200}));
+    return Response.json(yahoo());
+  }});
+  assert.equal(r.latest.complete,true);
+  assert.match(r.latest.quotes.find(q=>q.code==='6147').quote_source,/Yahoo/);
+  assert.ok(r.status.errors.some(e=>e.includes('[cnyes:6147]')));
 });

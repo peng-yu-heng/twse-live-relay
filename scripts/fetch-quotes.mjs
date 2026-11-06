@@ -9,7 +9,7 @@ export const GROUPS = [
   { market: 'otc', codes: ['8358','6147'] },
 ];
 const EXPECTED = GROUPS.flatMap(g => g.codes);
-const SOURCE = 'TWSE MIS direct; MCP per-symbol fallback; independent Yahoo Finance timestamp-validated fallback';
+const SOURCE = 'TWSE MIS direct; MCP per-symbol fallback; Cnyes and Yahoo Finance timestamp-validated fallbacks';
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 export function nowTaipei(d = new Date()) {
@@ -70,7 +70,32 @@ export function normalize(q, market, previousByCode, now) {
     prev_close: numericOrNull(q.prev_close), volume_lots: numericOrNull(q.volume),
     limit_up: numericOrNull(q.limit_up), limit_down: numericOrNull(q.limit_down),
     quote_source: q.quote_source,
+    source_url: q.source_url ?? null,
   };
+}
+
+// Cnyes' own quote client maps 200007=TRADE_TIME, 6=PRICE, 200013=LOT_VOLUME.
+// TWS denotes Taiwan stocks on this provider, including TPEx; never infer TSE from it.
+export function cnyesQuote(data, code, market, now) {
+  const expectedMarket = GROUPS.find(g => g.codes.includes(code))?.market;
+  const symbol = `TWS:${code}:STOCK`;
+  const row = data?.data?.find(q => q['0'] === symbol);
+  if (data?.statusCode !== 200 || expectedMarket !== market || !row
+      || String(row['200010']) !== code || row['800013'] !== symbol
+      || row['200061'] !== 'COMMON') throw new Error('Cnyes stock identity or market mismatch');
+  const epoch = row['200007'];
+  if (typeof epoch !== 'number' || !Number.isFinite(epoch) || epoch < 1e9)
+    throw new Error('Cnyes missing original trade timestamp');
+  const stamp = nowTaipei(new Date(epoch * 1000));
+  const q = { code, name: row['200009'], date: stamp.isoDate, time: stamp.local.slice(11, 19),
+    _last_trade_time: stamp.local.slice(11, 19), last: row['6'], bid: null, ask: null,
+    // column G does not supply an independently identified opening/previous close.
+    open: null, prev_close: null, high: row['12'], low: row['13'], volume: row['200013'],
+    quote_source: 'Cnyes quote API original TRADE_TIME (secondary provider)',
+    source_url: `https://ws.api.cnyes.com/ws/api/v1/quote/quotes/${symbol}?column=G` };
+  if (normalize(q, market, new Map(), now).analysis_mode !== 'last_trade')
+    throw new Error('Cnyes trade missing, future, prior date or older than five minutes');
+  return q;
 }
 
 
@@ -92,6 +117,7 @@ export function yahooQuote(data, code, market, now) {
     open: first >= 0 ? opens[first] : null, high: m.regularMarketDayHigh, low: m.regularMarketDayLow,
     prev_close: m.chartPreviousClose ?? m.previousClose,
     volume: numericOrNull(m.regularMarketVolume) == null ? null : Number(m.regularMarketVolume) / 1000,
+    source_url: `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1m&range=1d`,
     quote_source: 'Yahoo Finance chart meta regularMarketTime (secondary independent feed)' };
   if (normalize(q, market, new Map(), now).analysis_mode !== 'last_trade') {
     throw new Error('Yahoo trade missing, future, prior date or older than five minutes');
@@ -171,7 +197,7 @@ export async function collectQuotes({ fetch: request = globalThis.fetch, now = (
         const q = { code: symbol.code, name: x.n, date, time: snapshot.local.slice(11, 19),
           last: x.z, _last_trade_time: x.t ?? null, bid: first(x.b), ask: first(x.a),
           open: x.o, high: x.h, low: x.l, prev_close: x.y, volume: x.v, limit_up: x.u, limit_down: x.w,
-          quote_source: 'TWSE MIS direct (exchange tlong validated)' };
+          quote_source: 'TWSE MIS direct (exchange tlong validated)', source_url: url.href };
         if (usable(q, symbol.market)) found.set(symbol.code, q);
       }
     } catch (e) { errors.push(`[direct-MIS] attempt ${attempt}/3: ${errorMessage(e)}`); }
@@ -221,6 +247,25 @@ export async function collectQuotes({ fetch: request = globalThis.fetch, now = (
 
 
   // A separate provider is necessary: MIS and the MCP relay share one upstream.
+  // Cnyes is tried before Yahoo, which can be delayed twenty minutes in Taiwan.
+  const cnyesPending = GROUPS.flatMap(g => g.codes
+    .filter(code => !found.has(code) || !usable(found.get(code), g.market))
+    .map(code => ({ code, market: g.market })));
+  let cnyesCursor = 0;
+  await Promise.all(Array.from({ length: Math.min(4, cnyesPending.length) }, async () => {
+    while (cnyesCursor < cnyesPending.length) {
+      const { code, market } = cnyesPending[cnyesCursor++];
+      try {
+        const url = new URL(`https://ws.api.cnyes.com/ws/api/v1/quote/quotes/TWS:${code}:STOCK`);
+        url.searchParams.set('column', 'G'); url.searchParams.set('_', String(now().getTime()));
+        const res = await request(url, { headers: { accept: 'application/json', 'user-agent': 'Mozilla/5.0' },
+          signal: AbortSignal.timeout(8000) });
+        if (!res.ok) throw new Error(`Cnyes HTTP ${res.status}`);
+        found.set(code, cnyesQuote(await res.json(), code, market, now()));
+      } catch (e) { errors.push(`[cnyes:${code}] ${errorMessage(e)}`); }
+    }
+  }));
+
   const yahooPending = GROUPS.flatMap(g => g.codes
     .filter(code => !found.has(code) || !usable(found.get(code), g.market))
     .map(code => ({ code, market: g.market })));

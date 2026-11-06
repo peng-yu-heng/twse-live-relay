@@ -61,3 +61,17 @@ setting change; retries cannot resolve it.
 ## Independent live backup (2026-11-05)
 
 When MIS and its MCP proxy cannot validate a symbol, query Yahoo Finance's chart feed for that symbol only. Accept a trade only after exact symbol, exchange, TWD currency, Asia/Taipei timezone, current Taiwan date, positive price and original regularMarketTime age 0–300 seconds are verified. Never use HTTP fetch time as trade time. No bid/ask is inferred; the source is explicitly secondary. Missing or stale backup data keeps the symbol unusable and the run incomplete. Publication still recalculates all ages. Regression tests cover invalid identity/time and isolated fallback recovery.
+
+## Cnyes recovery (2026-11-06)
+
+The MIS proxy shares MIS's upstream, and Yahoo's Taiwan feed was observed about
+20 minutes behind. After MIS and MCP, try the Cnyes Taiwan stock quote API before
+Yahoo, only for unresolved symbols. Exact `TWS:<code>:STOCK`, duplicate symbol,
+stock code and common-stock type must match. `TWS` covers both TSE and TPEx here;
+the tracked symbol configuration supplies the exchange. Cnyes' own web client
+maps field `200007` to `TRADE_TIME`, `6` to price, `12/13` to high/low and `200013`
+to volume in lots. Original trade time must be today and 0–300 seconds old at
+publication. HTTP fetch time never substitutes for trade time. No bid/ask, opening
+price or previous close is inferred from the column-G response. Each accepted row
+contains a source URL. A delayed or malformed Cnyes response still falls through
+to Yahoo and otherwise remains missing; no guarantee of continuous availability.
