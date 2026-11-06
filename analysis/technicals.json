@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-11-05T14:54:41.958Z",
+  "generated_at": "2026-11-06T07:24:38.048Z",
   "indicator_basis": "Completed verified-date daily bars only; excludes announced exchange closures. Unadjusted OHLC. RSI5/10/14 use Wilder smoothing. KD(9,3,3) uses 9-day RSV with K and D initialized at 50 and 1/3 smoothing. ATR14 uses Wilder true range.",
   "verification": {
-    "last_verified_quote_date": "2026-11-05",
+    "last_verified_quote_date": "2026-11-06",
     "excluded_exchange_closures": [
       "2026-10-23"
     ],
@@ -38,13 +38,13 @@
       "kd_k_direction": "down",
       "kd_d_direction": "down",
       "atr14": 81.24964786574654,
-      "avg_volume5": 25747593.6,
-      "avg_volume20": 18617322.2,
+      "avg_volume5": 25413139.6,
+      "avg_volume20": 18533708.7,
       "high20": 1345,
       "low20": 800,
       "high60": 1420,
       "low60": 800,
-      "source": "TWSE/TPEx official dated OHLC for today; Yahoo Finance secondary pre-today history (not independently official verified)"
+      "source": "Yahoo Finance secondary history, last completed earlier session; todays official close unavailable or OHLC incomplete."
     },
     {
       "code": "8046",
@@ -75,13 +75,13 @@
       "kd_k_direction": "down",
       "kd_d_direction": "down",
       "atr14": 95.17283159714076,
-      "avg_volume5": 10613440,
-      "avg_volume20": 8563356.95,
+      "avg_volume5": 10550581.4,
+      "avg_volume20": 8547642.3,
       "high20": 1560,
       "low20": 972,
       "high60": 1560,
       "low60": 972,
-      "source": "TWSE/TPEx official dated OHLC for today; Yahoo Finance secondary pre-today history (not independently official verified)"
+      "source": "Yahoo Finance secondary history, last completed earlier session; todays official close unavailable or OHLC incomplete."
     },
     {
       "code": "3189",
@@ -112,13 +112,13 @@
       "kd_k_direction": "down",
       "kd_d_direction": "down",
       "atr14": 73.41700551257759,
-      "avg_volume5": 17630086,
-      "avg_volume20": 14709816.35,
+      "avg_volume5": 17532732.4,
+      "avg_volume20": 14685477.95,
       "high20": 1145,
       "low20": 740,
       "high60": 1150,
       "low60": 740,
-      "source": "TWSE/TPEx official dated OHLC for today; Yahoo Finance secondary pre-today history (not independently official verified)"
+      "source": "Yahoo Finance secondary history, last completed earlier session; todays official close unavailable or OHLC incomplete."
     },
     {
       "code": "1802",
@@ -126,36 +126,36 @@
       "name": "台玻",
       "market": "tse",
       "last_completed_date": "2026-11-05",
-      "last_completed_close": 60.1,
-      "ma5": 64.09999877929688,
-      "ma10": 64.75999847412109,
-      "ma20": 64.61499927520751,
-      "ma60": 60.491666310628254,
-      "rsi5": 31.299108915153084,
+      "last_completed_close": 60.099998474121094,
+      "ma5": 64.0999984741211,
+      "ma10": 64.7599983215332,
+      "ma20": 64.61499919891358,
+      "ma60": 60.49166628519694,
+      "rsi5": 31.299105450924912,
       "rsi5_prev": 60.04491158843311,
-      "rsi5_change": -28.745802673280025,
-      "rsi10": 40.65871859686239,
+      "rsi5_change": -28.745806137508197,
+      "rsi10": 40.658715835527566,
       "rsi10_prev": 57.57048464381689,
-      "rsi10_change": -16.911766046954497,
-      "rsi14": 44.08581706611432,
+      "rsi10_change": -16.911768808289324,
+      "rsi14": 44.085814737483695,
       "rsi14_prev": 57.1406210232825,
-      "rsi14_change": -13.054803957168176,
+      "rsi14_change": -13.054806285798804,
       "kd_period": "9,3,3",
-      "kd_k": 32.70299205403028,
-      "kd_d": 38.082595968684025,
+      "kd_k": 32.7029886173659,
+      "kd_d": 38.082594823129234,
       "kd_prev_k": 44.66259338525336,
       "kd_prev_d": 40.7723979260109,
       "kd_cross": "death_cross",
       "kd_k_direction": "down",
       "kd_d_direction": "down",
-      "atr14": 4.620202624896974,
-      "avg_volume5": 171343123.2,
-      "avg_volume20": 142235029.15,
+      "atr14": 4.620202733888324,
+      "avg_volume5": 171204795.4,
+      "avg_volume20": 142200447.2,
       "high20": 73.5999984741211,
       "low20": 58.79999923706055,
       "high60": 73.5999984741211,
       "low60": 52.70000076293945,
-      "source": "TWSE/TPEx official dated OHLC for today; Yahoo Finance secondary pre-today history (not independently official verified)"
+      "source": "Yahoo Finance secondary history, last completed earlier session; todays official close unavailable or OHLC incomplete."
     },
     {
       "code": "1303",
@@ -186,13 +186,13 @@
       "kd_k_direction": "down",
       "kd_d_direction": "down",
       "atr14": 22.459152692373653,
-      "avg_volume5": 91988238,
-      "avg_volume20": 102095576.2,
+      "avg_volume5": 91720967.2,
+      "avg_volume20": 102028758.5,
       "high20": 350.5,
       "low20": 249,
       "high60": 350.5,
       "low60": 172.5,
-      "source": "TWSE/TPEx official dated OHLC for today; Yahoo Finance secondary pre-today history (not independently official verified)"
+      "source": "Yahoo Finance secondary history, last completed earlier session; todays official close unavailable or OHLC incomplete."
     },
     {
       "code": "2408",
@@ -223,13 +223,13 @@
       "kd_k_direction": "down",
       "kd_d_direction": "down",
       "atr14": 30.862367520724852,
-      "avg_volume5": 50805133.6,
-      "avg_volume20": 48005480.1,
+      "avg_volume5": 50405956.4,
+      "avg_volume20": 47905685.8,
       "high20": 537,
       "low20": 360,
       "high60": 569,
       "low60": 360,
-      "source": "TWSE/TPEx official dated OHLC for today; Yahoo Finance secondary pre-today history (not independently official verified)"
+      "source": "Yahoo Finance secondary history, last completed earlier session; todays official close unavailable or OHLC incomplete."
     },
     {
       "code": "8358",
@@ -260,13 +260,13 @@
       "kd_k_direction": "down",
       "kd_d_direction": "down",
       "atr14": 35.327911605729064,
-      "avg_volume5": 12084121.8,
-      "avg_volume20": 10627858.5,
+      "avg_volume5": 12017517.2,
+      "avg_volume20": 10611207.35,
       "high20": 578,
       "low20": 330.5,
       "high60": 578,
       "low60": 330.5,
-      "source": "TWSE/TPEx official dated OHLC for today; Yahoo Finance secondary pre-today history (not independently official verified)"
+      "source": "Yahoo Finance secondary history, last completed earlier session; todays official close unavailable or OHLC incomplete."
     },
     {
       "code": "6147",
@@ -297,13 +297,13 @@
       "kd_k_direction": "down",
       "kd_d_direction": "down",
       "atr14": 14.62055803849819,
-      "avg_volume5": 20615459.6,
-      "avg_volume20": 28755000.45,
+      "avg_volume5": 20559838.8,
+      "avg_volume20": 28741095.25,
       "high20": 238,
       "low20": 157.5,
       "high60": 238,
       "low60": 144.5,
-      "source": "TWSE/TPEx official dated OHLC for today; Yahoo Finance secondary pre-today history (not independently official verified)"
+      "source": "Yahoo Finance secondary history, last completed earlier session; todays official close unavailable or OHLC incomplete."
     }
   ],
   "errors": []
