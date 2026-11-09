@@ -1,5 +1,5 @@
 {
-  "attempted_at": "2026-11-09T15:43:18+08:00",
+  "attempted_at": "2026-11-09T16:18:57+08:00",
   "source": "TWSE MIS direct; MCP per-symbol fallback; Cnyes and Yahoo Finance timestamp-validated fallbacks",
   "endpoint": "https://twse-mcp.taux.io/mcp",
   "expected_codes": [
