@@ -1,6 +1,6 @@
 {
-  "attempted_at": "2026-11-06T14:56:44.547Z",
-  "trading_date": "2026-11-06",
+  "attempted_at": "2026-11-09T15:59:39.061Z",
+  "trading_date": "2026-11-09",
   "expected_codes": [
     "3037",
     "8046",
@@ -17,13 +17,16 @@
     "3189",
     "1802",
     "1303",
-    "2408",
+    "2408"
+  ],
+  "missing_codes": [
     "8358",
     "6147"
   ],
-  "missing_codes": [],
-  "success": true,
+  "success": false,
   "errors": [
-    "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL: 3037: wrong trade date 2026-11-05"
+    "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL: 3037: wrong trade date 2026-11-06",
+    "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes: The operation was aborted due to timeout",
+    "https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotes/stk_quote_result.php?l=zh-tw&d=115%2F11%2F09&o=json: The operation was aborted due to timeout"
   ]
 }
