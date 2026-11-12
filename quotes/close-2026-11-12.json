@@ -1,6 +1,6 @@
 {
   "trading_date": "2026-11-12",
-  "collected_at": "2026-11-12T15:01:56.208Z",
+  "collected_at": "2026-11-12T15:55:36.184Z",
   "price_type": "official_daily_close",
   "complete": true,
   "verified_codes": [
@@ -92,11 +92,11 @@
       "market": "otc",
       "date": "2026-11-12",
       "close": 368.5,
-      "open": null,
-      "high": null,
-      "low": null,
-      "volume_shares": null,
-      "source": "TPEx legacy verified-date daily quotes, close only"
+      "open": 388.5,
+      "high": 413,
+      "low": 368.5,
+      "volume_shares": 28798402,
+      "source": "TPEx OpenAPI daily_close_quotes"
     },
     {
       "code": "6147",
@@ -104,15 +104,14 @@
       "market": "otc",
       "date": "2026-11-12",
       "close": 167.5,
-      "open": null,
-      "high": null,
-      "low": null,
-      "volume_shares": null,
-      "source": "TPEx legacy verified-date daily quotes, close only"
+      "open": 172,
+      "high": 180,
+      "low": 166.5,
+      "volume_shares": 24607913,
+      "source": "TPEx OpenAPI daily_close_quotes"
     }
   ],
   "errors": [
-    "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL: 3037: wrong trade date 2026-11-11",
-    "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes: The operation was aborted due to timeout"
+    "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL: 3037: wrong trade date 2026-11-11"
   ]
 }
