@@ -1,5 +1,5 @@
 # Quote refresh trigger
 
-- requested_at: 2026-11-13T09:32:00+08:00
-- reason: 2026-11-13 Taiwan early report final pre-send refresh and per-symbol freshness validation
-- requested_by: scheduled-stock-research
+- requested_at: 2026-11-13T12:00:49+08:00
+- reason: 2026-11-13 intraday buy-or-average-down decision; 09:30 snapshot stale at noon; verify 8046 3037 3189 8358 trade times and all eight stock quote freshness
+- requested_by: user-requested-stock-research
