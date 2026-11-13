@@ -1,5 +1,5 @@
 {
-  "attempted_at": "2026-11-13T12:59:38+08:00",
+  "attempted_at": "2026-11-13T13:02:03+08:00",
   "source": "TWSE MIS direct; MCP per-symbol fallback; Cnyes and Yahoo Finance timestamp-validated fallbacks",
   "endpoint": "https://twse-mcp.taux.io/mcp",
   "expected_codes": [
@@ -12,7 +12,7 @@
     "8358",
     "6147"
   ],
-  "completed_at": "2026-11-13T12:59:39+08:00",
+  "completed_at": "2026-11-13T13:02:04+08:00",
   "state": "ok",
   "received_codes": [
     "3037",
@@ -24,15 +24,16 @@
     "8358",
     "6147"
   ],
-  "fresh_trade_codes_le_5m": [],
+  "fresh_trade_codes_le_5m": [
+    "3189",
+    "1303",
+    "8358"
+  ],
   "fresh_bid_ask_only_codes_le_5m": [
     "3037",
     "8046",
-    "3189",
     "1802",
-    "1303",
     "2408",
-    "8358",
     "6147"
   ],
   "unusable_codes": [],
