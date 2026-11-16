@@ -1,5 +1,4 @@
-# Quote refresh trigger
+# Live quote refresh trigger
 
-- requested_at: 2026-11-16T09:33:30+08:00
-- reason: 2026-11-16 09:30 morning report initial refresh; status/latest stale from 2026-11-13; recalculate each symbol freshness from original source time
-- requested_by: scheduled-stock-research
+- requested_at: 2026-11-16T09:37:11+08:00
+- reason: Final pre-send refresh for 2026-11-16 09:30 Taiwan stock report; revalidate each original trade/quote timestamp against the actual send time. This is the second and final refresh attempt for this report.
