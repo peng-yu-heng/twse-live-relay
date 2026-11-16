@@ -1,4 +1,4 @@
 # Live quote refresh trigger
 
-- requested_at: 2026-11-16T13:04:20+08:00
-- reason: Final pre-send refresh for 2026-11-16 13:00 tail report; prebuilt template and validations complete. Recalculate each original trade or bid/ask timestamp against the actual send time.
+- requested_at: 2026-11-16T13:09:51+08:00
+- reason: Second and final pre-send refresh because the first final snapshot crossed the five-minute limit during inline HTML validation. Recalculate each original trade or bid/ask timestamp against actual send time; no further retries.
