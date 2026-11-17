@@ -1,4 +1,4 @@
 # Live quote refresh trigger
 
-- requested_at: 2026-11-17T09:33:56+08:00
-- reason: Second and final pre-send refresh for 2026-11-17 09:30 early report; materials, template, deduplication and program validation are complete. Fill only current quotes, timestamps and holding P&L, then send immediately.
+- requested_at: 2026-11-17T12:58:40+08:00
+- reason: Preliminary refresh for 2026-11-17 13:00 tail report; current latest is the 09:34 early snapshot. Materials, template assembly and validation continue in parallel; a separate final pre-send refresh will follow.
