@@ -1,5 +1,5 @@
 {
-  "attempted_at": "2026-11-16T16:56:45.274Z",
+  "attempted_at": "2026-11-17T15:52:28.408Z",
   "trading_date": "2026-11-17",
   "expected_codes": [
     "3037",
@@ -11,8 +11,7 @@
     "8358",
     "6147"
   ],
-  "verified_codes": [],
-  "missing_codes": [
+  "verified_codes": [
     "3037",
     "8046",
     "3189",
@@ -22,11 +21,9 @@
     "8358",
     "6147"
   ],
-  "success": false,
+  "missing_codes": [],
+  "success": true,
   "errors": [
-    "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL: 3037: wrong trade date 2026-11-13",
-    "https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY_ALL?response=json&date=20261117: 3037: wrong trade date 2026-11-16",
-    "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes: 8358: wrong trade date 2026-11-16",
-    "https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotes/stk_quote_result.php?l=zh-tw&d=115%2F11%2F17&o=json: TPEx legacy report date unavailable 2026-11-16; keys=date,tables,flagField,stat; report={\"date\":\"20261116\",\"head\":\"上櫃股票行情\",\"first\":[\"00411A\",\"主動統一前沿科技\",\"8.88\",\"-0.46 \"]}"
+    "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL: 3037: wrong trade date 2026-11-16"
   ]
 }
