@@ -1,4 +1,4 @@
-# Live quote refresh trigger
+# Quote refresh trigger
 
-- requested_at: 2026-11-18T12:56:35+08:00
-- reason: First refresh for 2026-11-18 13:00 tail report; current latest is the 09:37 early snapshot. Materials, fixed tail template, deduplication and early-report verification continue in parallel.
+requested_at: 2026-11-18T13:01:15+08:00
+reason: final pre-send refresh for 2026-11-18 13:00 Taiwan tail report
