@@ -1,4 +1,4 @@
 # Quote refresh trigger
 
-requested_at: 2026-11-20T13:18:09+08:00
-reason: User demands immediate full 2026-11-20 13:00 repaired tail report resend. Final live quote refresh; verify actual per-symbol exchange trade time and use MIS/MCP/Cnyes fallback; write complete snapshot for pre-send gate.
+requested_at: 2026-11-23T09:26:53+08:00
+reason: 2026-11-23 09:30 morning report first live quote refresh; verify each symbol original trade or bid/ask time using MIS/MCP/Cnyes/Yahoo timestamp validation.
