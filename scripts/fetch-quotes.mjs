@@ -166,41 +166,62 @@ export async function collectQuotes({ fetch: request = globalThis.fetch, now = (
   const backoff = attempt => wait(500 * 2 ** (attempt - 1) + Math.floor(random() * 250));
   let nextId = 1;
 
+  async function fetchMis(pending) {
+    const url = new URL('https://mis.twse.com.tw/stock/api/getStockInfo.jsp');
+    url.searchParams.set('ex_ch', pending.map(s => `${s.market}_${s.code}.tw`).join('|'));
+    url.searchParams.set('json', '1'); url.searchParams.set('delay', '0');
+    url.searchParams.set('_', String(now().getTime()));
+    const response = await request(url, {
+      headers: { accept: 'application/json', 'user-agent': 'Mozilla/5.0', 'cache-control': 'no-cache' },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!response.ok) throw new Error(`MIS HTTP ${response.status}`);
+    const data = await response.json();
+    if (!Array.isArray(data.msgArray)) throw new Error('MIS response missing msgArray');
+    let matched = 0;
+    for (const x of data.msgArray) {
+      const symbol = pending.find(s => s.code === String(x.c) && s.market === x.ex);
+      if (!symbol) continue;
+      matched++;
+      const date = String(x.d ?? '').replace(/^(\d{4})(\d{2})(\d{2})$/, '$1-$2-$3');
+      const epoch = Number(x.tlong);
+      if (!Number.isFinite(epoch) || epoch < 1e12) { errors.push(`[direct-MIS:${symbol.code}] missing exchange tlong`); continue; }
+      const snapshot = nowTaipei(new Date(epoch));
+      const snapshotAge = age(date, snapshot.local.slice(11, 19), now());
+      if (snapshot.isoDate !== date || date !== nowTaipei(now()).isoDate || snapshotAge == null || snapshotAge > 300) {
+        errors.push(`[direct-MIS:${symbol.code}] stale/invalid exchange timestamp`); continue;
+      }
+      const first = value => String(value ?? '').split('_')[0];
+      const q = { code: symbol.code, name: x.n, date, time: snapshot.local.slice(11, 19),
+        last: x.z, _last_trade_time: x.t ?? null, bid: first(x.b), ask: first(x.a),
+        open: x.o, high: x.h, low: x.l, prev_close: x.y, volume: x.v, limit_up: x.u, limit_down: x.w,
+        quote_source: 'TWSE MIS direct (exchange tlong validated)', source_url: url.href };
+      if (usable(q, symbol.market)) found.set(symbol.code, q);
+    }
+    return matched;
+  }
+
+  let emptyFirstBatch = false;
   // Retry only unresolved symbols. A malformed or missing row must not discard its peers.
   for (let attempt = 1; attempt <= 3; attempt++) {
     const pending = GROUPS.flatMap(g => g.codes.filter(code => !found.has(code) || !usable(found.get(code), g.market)).map(code => ({ code, market: g.market })));
     if (!pending.length) break;
-    try {
-      const url = new URL('https://mis.twse.com.tw/stock/api/getStockInfo.jsp');
-      url.searchParams.set('ex_ch', pending.map(s => `${s.market}_${s.code}.tw`).join('|'));
-      url.searchParams.set('json', '1'); url.searchParams.set('delay', '0');
-      url.searchParams.set('_', String(now().getTime()));
-      const response = await request(url, {
-        headers: { accept: 'application/json', 'user-agent': 'Mozilla/5.0', 'cache-control': 'no-cache' },
-        signal: AbortSignal.timeout(10000),
-      });
-      if (!response.ok) throw new Error(`MIS HTTP ${response.status}`);
-      const data = await response.json();
-      if (!Array.isArray(data.msgArray)) throw new Error('MIS response missing msgArray');
-      for (const x of data.msgArray) {
-        const symbol = pending.find(s => s.code === String(x.c) && s.market === x.ex);
-        if (!symbol) continue;
-        const date = String(x.d ?? '').replace(/^(\d{4})(\d{2})(\d{2})$/, '$1-$2-$3');
-        const epoch = Number(x.tlong);
-        if (!Number.isFinite(epoch) || epoch < 1e12) { errors.push(`[direct-MIS:${symbol.code}] missing exchange tlong`); continue; }
-        const snapshot = nowTaipei(new Date(epoch));
-        const snapshotAge = age(date, snapshot.local.slice(11, 19), now());
-        if (snapshot.isoDate !== date || date !== nowTaipei(now()).isoDate || snapshotAge == null || snapshotAge > 300) {
-          errors.push(`[direct-MIS:${symbol.code}] stale/invalid exchange timestamp`); continue;
-        }
-        const first = value => String(value ?? '').split('_')[0];
-        const q = { code: symbol.code, name: x.n, date, time: snapshot.local.slice(11, 19),
-          last: x.z, _last_trade_time: x.t ?? null, bid: first(x.b), ask: first(x.a),
-          open: x.o, high: x.h, low: x.l, prev_close: x.y, volume: x.v, limit_up: x.u, limit_down: x.w,
-          quote_source: 'TWSE MIS direct (exchange tlong validated)', source_url: url.href };
-        if (usable(q, symbol.market)) found.set(symbol.code, q);
-      }
-    } catch (e) { errors.push(`[direct-MIS] attempt ${attempt}/3: ${errorMessage(e)}`); }
+
+    // An empty batch can hide valid single-symbol MIS responses.
+    // Split just the second attempt if the first batch contained no requested symbols.
+    const batches = attempt === 2 && emptyFirstBatch && pending.length > 1
+      ? pending.map(symbol => [symbol]) : [pending];
+    for (let start = 0; start < batches.length; start += 4) {
+      await Promise.all(batches.slice(start, start + 4).map(async batch => {
+        try {
+          const matched = await fetchMis(batch);
+          if (attempt === 1 && matched === 0) {
+            emptyFirstBatch = true;
+            errors.push('[direct-MIS] first response contained no requested symbols');
+          }
+        } catch (e) { errors.push(`[direct-MIS] attempt ${attempt}/3: ${errorMessage(e)}`); }
+      }));
+    }
     const unresolved = pending.filter(s => !found.has(s.code) || !usable(found.get(s.code), s.market));
     if (!unresolved.length) break;
     errors.push(`[direct-MIS] attempt ${attempt}/3 unresolved: ${unresolved.map(s => s.code).join(',')}`);
@@ -248,6 +269,15 @@ export async function collectQuotes({ fetch: request = globalThis.fetch, now = (
 
   // A separate provider is necessary: MIS and the MCP relay share one upstream.
   // Cnyes is tried before Yahoo, which can be delayed twenty minutes in Taiwan.
+  async function fetchCnyes(code, market) {
+    const url = new URL(`https://ws.api.cnyes.com/ws/api/v1/quote/quotes/TWS:${code}:STOCK`);
+    url.searchParams.set('column', 'G'); url.searchParams.set('_', String(now().getTime()));
+    const res = await request(url, { headers: { accept: 'application/json', 'user-agent': 'Mozilla/5.0' },
+      signal: AbortSignal.timeout(8000) });
+    if (!res.ok) throw Object.assign(new Error(`Cnyes HTTP ${res.status}`), { status: res.status });
+    found.set(code, cnyesQuote(await res.json(), code, market, now()));
+  }
+
   const cnyesPending = GROUPS.flatMap(g => g.codes
     .filter(code => !found.has(code) || !usable(found.get(code), g.market))
     .map(code => ({ code, market: g.market })));
@@ -255,14 +285,17 @@ export async function collectQuotes({ fetch: request = globalThis.fetch, now = (
   await Promise.all(Array.from({ length: Math.min(4, cnyesPending.length) }, async () => {
     while (cnyesCursor < cnyesPending.length) {
       const { code, market } = cnyesPending[cnyesCursor++];
-      try {
-        const url = new URL(`https://ws.api.cnyes.com/ws/api/v1/quote/quotes/TWS:${code}:STOCK`);
-        url.searchParams.set('column', 'G'); url.searchParams.set('_', String(now().getTime()));
-        const res = await request(url, { headers: { accept: 'application/json', 'user-agent': 'Mozilla/5.0' },
-          signal: AbortSignal.timeout(8000) });
-        if (!res.ok) throw new Error(`Cnyes HTTP ${res.status}`);
-        found.set(code, cnyesQuote(await res.json(), code, market, now()));
-      } catch (e) { errors.push(`[cnyes:${code}] ${errorMessage(e)}`); }
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          await fetchCnyes(code, market);
+          break;
+        } catch (e) {
+          errors.push(`[cnyes:${code}] attempt ${attempt}/2: ${errorMessage(e)}`);
+          const transient = e.status >= 500 || e.name === 'TimeoutError' || e instanceof TypeError;
+          if (!transient || attempt === 2) break;
+          await backoff(attempt);
+        }
+      }
     }
   }));
 

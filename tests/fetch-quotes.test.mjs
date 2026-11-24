@@ -238,3 +238,32 @@ test('delayed Cnyes remains rejected and permits timestamp-validated Yahoo recov
   assert.match(r.latest.quotes.find(q=>q.code==='6147').quote_source,/Yahoo/);
   assert.ok(r.status.errors.some(e=>e.includes('[cnyes:6147]')));
 });
+
+test('empty MIS batch recovers through symbol-specific official requests', async () => {
+  const requested = [];
+  const result = await collectQuotes({ ...opts, fetch: async url => {
+    const channel = new URL(url).searchParams.get('ex_ch');
+    requested.push(channel);
+    if (channel.includes('|')) return mis([]);
+    return mis(SYMBOLS.filter(s => channel === s.market + '_' + s.code + '.tw'));
+  } });
+  assert.equal(result.status.success, true);
+  assert.equal(requested.length, 9);
+  assert.equal(new Set(requested.slice(1)).size, 8);
+});
+
+test('temporary Cnyes gateway failure retries only the unresolved symbol', async () => {
+  let attempts = 0;
+  const result = await collectQuotes({ ...opts, fetch: async (url, init) => {
+    const endpoint = new URL(url);
+    if (endpoint.hostname === 'mis.twse.com.tw') return mis(SYMBOLS.filter(s => s.code !== '8358'));
+    if (endpoint.hostname === 'twse-mcp.taux.io') return relay(init, { date: '2026-11-02' });
+    assert.equal(endpoint.hostname, 'ws.api.cnyes.com');
+    assert.ok(endpoint.pathname.endsWith('TWS:8358:STOCK'));
+    if (++attempts === 1) return new Response(null, { status: 502 });
+    return Response.json(cnyes('8358'));
+  } });
+  assert.equal(attempts, 2);
+  assert.equal(result.latest.complete, true);
+  assert.match(result.latest.quotes.find(q => q.code === '8358').quote_source, /Cnyes/);
+});
