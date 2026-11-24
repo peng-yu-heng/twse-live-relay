@@ -1,4 +1,4 @@
 # Quote refresh trigger
 
-requested_at: 2026-11-24T09:40:15+08:00
-reason: 2026-11-24 09:30 morning report mandatory final pre-send refresh; require completed_at not earlier than this request, then validate every symbol original last_trade_time or bid/ask snapshot_time age 0-300 seconds immediately before Gmail send.
+requested_at: 2026-11-24T09:41:16+08:00
+reason: 2026-11-24 09:30 morning report single permitted final retry; prior final refresh was partial because 8358 had no 0-300 second trade or bid/ask snapshot. Require completed_at not earlier than this request and revalidate all eight immediately before Gmail send.
