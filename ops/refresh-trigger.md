@@ -1,4 +1,4 @@
 # Quote refresh trigger
 
-requested_at: 2026-11-24T13:13:08+08:00
-reason: Post-anomaly recovery check 2 and final allowed check for the 2026-11-24 13:00 Taiwan tail report, following Gmail message 1a20bf64afbd20df. Check 1 briefly had all eight, but 8046 reached 300 seconds before Gmail send. Retry independent timestamp-validated providers and revalidate all eight at the same time. Preserve original trade or formal bid/ask timestamps.
+requested_at: 2026-11-25T09:32:30.837+08:00
+reason: Initial active-session refresh for the 2026-11-25 09:30 Taiwan morning report. Obtain and timestamp-validate all eight symbols; preserve original trade or formal bid/ask timestamps and do not substitute fetch time.
