@@ -1,4 +1,4 @@
 # Quote refresh trigger
 
-requested_at: 2026-11-26T13:09:56.569+08:00
-reason: Mandatory final pre-send refresh for the 2026-11-26 13:00 Taiwan tail report. This is the last active refresh after research and HTML validation. Generate quotes/status.json and quotes/latest.json with completed_at not earlier than this request; validate all eight symbols using original last_trade_time or separately identified formal bid/ask snapshot_time, never fetched_at.
+requested_at: 2026-11-27T09:28:31.597+08:00
+reason: Initial active refresh for the 2026-11-27 09:30 Taiwan morning report because quotes/latest.json is from the prior trading day. Generate a new completed_at not earlier than this request and validate all eight symbols from original last_trade_time or formal bid/ask snapshot_time, never fetched_at.
